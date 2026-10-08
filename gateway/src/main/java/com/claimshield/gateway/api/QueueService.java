@@ -22,6 +22,12 @@ public class QueueService {
 
   public record Item(String caseId, double utility, double hours) {}
 
+  /** Optional filters beyond tier, scheme, specialty and status. Every field may be null. */
+  public record Extra(String confidence, Double minEvidence, Integer minMembers, Double minExposure,
+      Integer minRegions, String provider, Boolean network, String q, Double minRisk) {
+    static final Extra NONE = new Extra(null, null, null, null, null, null, null, null, null);
+  }
+
   private final ServingRepository serving;
   private final JdbcTemplate jdbc;
   private final Json json;
@@ -51,6 +57,11 @@ public class QueueService {
 
   public Map<String, Object> queue(int horizon, double capacityHours, String tier, String scheme, String specialty,
       String status) {
+    return queue(horizon, capacityHours, tier, scheme, specialty, status, Extra.NONE);
+  }
+
+  public Map<String, Object> queue(int horizon, double capacityHours, String tier, String scheme, String specialty,
+      String status, Extra x) {
     if (!HORIZONS.contains(horizon)) {
       throw ApiException.invalid("horizon", "must be 30, 60 or 90");
     }
@@ -93,6 +104,21 @@ public class QueueService {
       if (scheme != null && !scheme.isBlank() && !hyps.contains(scheme)) continue;
       if (specialty != null && !specialty.isBlank() && !specialty.equals(r.get("specialty_code"))) continue;
       if (status != null && !status.isBlank() && !status.equals(caseStatus)) continue;
+      JsonNode conf = header.path("confidence");
+      JsonNode imp = header.path("impact");
+      if (x.confidence() != null && !x.confidence().isBlank() && !x.confidence().equals(conf.path("level").asString(""))) continue;
+      if (x.minEvidence() != null && conf.path("evidenceStrength").asDouble(0) < x.minEvidence()) continue;
+      if (x.minMembers() != null && imp.path("members").asInt(0) < x.minMembers()) continue;
+      if (x.minExposure() != null && imp.path("exposureExact").asDouble(0) + imp.path("exposureEstimated").asDouble(0) < x.minExposure()) continue;
+      if (x.minRegions() != null && imp.path("regions").asInt(0) < x.minRegions()) continue;
+      if (x.minRisk() != null && ((Number) r.get(riskCol)).doubleValue() < x.minRisk()) continue;
+      if (x.network() != null && x.network() != header.path("ruleIds").valueStream().anyMatch(v -> v.asString().startsWith("G-"))) continue;
+      if (x.provider() != null && !x.provider().isBlank() && header.get("subjects").valueStream()
+          .noneMatch(s -> s.path("id").asString("").toLowerCase().contains(x.provider().toLowerCase()))) continue;
+      if (x.q() != null && !x.q().isBlank()) {
+        String hay = (id + " " + caseStatus + " " + hyps + " " + header.get("subjects")).toLowerCase();
+        if (!hay.contains(x.q().toLowerCase())) continue;
+      }
 
       Map<String, Object> factors = new LinkedHashMap<>();
       factors.put("risk", ((Number) r.get(riskCol)).doubleValue());
@@ -120,6 +146,9 @@ public class QueueService {
       item.put("inCapacity", in);
       item.put("deferReason", in ? null : "exceeds remaining capacity");
       item.put("assignedTo", wf.containsKey(id) ? wf.get(id).get("assigned_to") : null);
+      item.put("confidence", conf.isMissingNode() ? null : conf);
+      item.put("impact", imp.isMissingNode() ? null : imp);
+      item.put("ruleIds", header.get("ruleIds"));
       out.add(item);
     }
     Map<String, Object> resp = new LinkedHashMap<>();

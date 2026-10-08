@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from claimshield import reference as ref
 from claimshield.cases.score import ScoredCase, pack_first_fit
 from claimshield.cases.views import ViewData, build_graph, build_timeline
+from claimshield.evidence import insight
 from claimshield.evidence.pack import PackContext, build_pack, canonical_json
 
 MAX_LINES_PER_CASE = 500
@@ -40,7 +41,8 @@ def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: d
                 "run_id": run_id, "monitor_id": f"MON-{mon_n:04d}", "provider_id": d.primary,
                 "reasons_json": _j({"tierReasons": sc.tier_reasons, "hypotheses": sc.hypotheses,
                                     "dollarsExact": sc.dollars_exact, "dollarsEstimated": sc.dollars_est,
-                                    "caseId": d.case_id}),
+                                    "caseId": d.case_id,
+                                    "explanation": insight.explain_not_flagged(sc, ctx, sc.exception_id)}),
                 "raise_json": _j(sc.raise_conf)})
             continue
         for m in sc.matches:
@@ -80,6 +82,7 @@ def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: d
             "outlook": sc.outlook,
             "defaultAction": pack["defaultAction"], "permittedActions": pack["permittedActions"],
             "packSha256": pack["packSha256"], "runId": run_id,
+            **insight.case_summary(sc, pack),
         }
         cases.append({
             "run_id": run_id, "case_id": d.case_id, "primary_provider_id": d.primary,
@@ -101,7 +104,19 @@ def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: d
             "reasons_json": _j({"tierReasons": [f"Downgraded to Monitor by the approved exception {sp['excId']}"],
                                 "hypotheses": sp["hypotheses"], "dollarsExact": 0.0,
                                 "dollarsEstimated": sp["dollars"], "caseId": None, "exceptionId": sp["excId"],
-                                "alerts": sp["alerts"]}),
+                                "alerts": sp["alerts"],
+                                "explanation": {
+                                    "flagged": False, "confidenceLine": "Confidence: LOW - " + insight.INSUFFICIENT,
+                                    "headline": f"Not escalated because the approved exception {sp['excId']} "
+                                                "matches this provider's pattern.",
+                                    "viaException": sp["excId"],
+                                    "whatWasSeen": [h["text"] for h in sp["hypotheses"]],
+                                    "missingEvidence": ["A finding that the provider is outside the exception's "
+                                                        "conditions"],
+                                    "whatWouldChangeThis": ["Retire the exception, or new evidence outside its "
+                                                            "conditions"],
+                                    "recommendedHumanAction": {"action": "MONITOR", "text": "Keep on the Monitor "
+                                                               "list. " + insight.INSUFFICIENT}}}),
             "raise_json": _j(["Retire the exception, or a finding that the provider is outside its conditions"])})
     return {"cases": cases, "packs": packs, "lines": lines, "monitors": monitors, "in_capacity": in_cap,
             "graphs": graphs, "timelines": timelines, "case_precedents": case_prec}
@@ -143,11 +158,43 @@ def build_dashboard(run_id: str, scored: list[ScoredCase], funnel: dict) -> dict
                  "estimatedDollars": funnel["dollars"]["estimated"]},
         "exposureByScheme": [{"scheme": k, "label": ref.HYPOTHESIS_TEXT[k], "dollars": round(v["dollars"], 2),
                               "cases": v["cases"]} for k, v in sorted(by_scheme.items())],
+        "distributions": _distributions(scored),
+        "networks": [{"caseId": s.draft.case_id, "providers": len(s.draft.providers) + len(s.draft.related),
+                      "rules": sorted({a.rule_id for a in s.draft.alerts if a.rule_id.startswith("G-")}),
+                      "dollars": round(s.dollars_exact + s.dollars_est, 2)}
+                     for s in scored if s.tier != "LOW" and any(a.rule_id.startswith("G-") for a in s.draft.alerts)
+                     and any(a.rule_id != "G-INFRA" for a in s.draft.alerts if a.rule_id.startswith("G-"))],
+        "trends": dict(Counter(s.trend or "UNKNOWN" for s in scored if s.tier != "LOW")),
+        "outlook": _outlook_summary(scored),
         "needsYouNow": [{"caseId": s.draft.case_id, "tier": s.tier, "primary": s.draft.primary,
                          "hypotheses": [h["code"] for h in s.hypotheses],
                          "dollars": round(s.dollars_exact + s.dollars_est, 2)}
                         for s in needs],
     }
+
+
+def _distributions(scored: list[ScoredCase]) -> dict:
+    cases = [s for s in scored if s.tier != "LOW"]
+    buckets = ["0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "0.8-1.0"]
+    hist = Counter(buckets[min(4, int(s.evidence_strength * 5))] for s in cases)
+    agree = Counter(sum(1 for v in s.channels.values() if v >= 0.3) for s in cases)
+    return {"confidence": {"HIGH": sum(1 for s in cases if s.tier == "HIGH"),
+                           "MEDIUM": sum(1 for s in cases if s.tier == "MEDIUM"),
+                           "LOW": sum(1 for s in scored if s.tier == "LOW")},
+            "evidenceStrength": [{"bucket": b, "cases": hist.get(b, 0)} for b in buckets],
+            "channelsAgreeing": [{"channels": k, "cases": v} for k, v in sorted(agree.items())],
+            "risk": [{"bucket": b, "cases": sum(1 for s in cases if buckets[min(4, int(s.risk * 5))] == b)}
+                     for b in buckets]}
+
+
+def _outlook_summary(scored: list[ScoredCase]) -> dict:
+    ps = {h: [s.outlook["horizons"][str(h)]["probability"] for s in scored
+              if s.tier != "LOW" and s.outlook.get("available")] for h in (30, 60, 90)}
+    return {"available": bool(ps[90]), "label": "Prioritization signal, not proof",
+            "mean": {str(h): round(sum(v) / len(v), 4) if v else None for h, v in ps.items()},
+            "top": [{"caseId": s.draft.case_id, "p90": s.outlook["horizons"]["90"]["probability"]}
+                    for s in sorted((s for s in scored if s.tier != "LOW" and s.outlook.get("available")),
+                                    key=lambda s: -s.outlook["horizons"]["90"]["probability"])[:5]]}
 
 
 def dumps(obj) -> str:

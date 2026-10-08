@@ -43,7 +43,7 @@ describe('QueuePage', () => {
     const m = mockFetch({ 'GET /api/queue': response() })
     renderWithProviders(<QueuePage />)
     await screen.findByText('CASE-0003')
-    expect(m.calls[0].url).toBe('/api/queue?horizon=90&capacityHours=240')
+    expect(m.calls.find((c) => c.url.startsWith('/api/queue'))?.url).toBe('/api/queue?horizon=90&capacityHours=240')
 
     await userEvent.selectOptions(screen.getByLabelText('Risk horizon'), '30')
     await waitFor(() => expect(m.calls.some((c) => c.url.includes('horizon=30'))).toBe(true))

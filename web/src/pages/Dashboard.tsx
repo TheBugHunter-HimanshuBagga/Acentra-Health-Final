@@ -13,7 +13,7 @@ import { money, TierBadge } from '@/components/TierBadge'
 import { api } from '@/lib/api'
 import { AnimatedBar, CountUp, ScrollReveal } from '@/lib/motion'
 import type { QueueResponse } from '@/lib/types'
-import type { Compounding, Dashboard, EvalReport, Funnel } from '@/lib/types2'
+import type { Compounding, Dashboard, EvalReport, Funnel, Growth } from '@/lib/types2'
 
 const int = (n: number) => Math.round(n).toLocaleString('en-US')
 const usd0 = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
@@ -85,7 +85,7 @@ function Hero({ d, funnel, comp, queue }: { d: Dashboard; funnel?: Funnel; comp?
           <h1 className="display text-[2.75rem] sm:text-6xl lg:text-7xl">
             {rows.map((row, i) => (
               <span key={i} data-line className="block overflow-hidden pb-1">
-                <span className="block">{row.join(' ')}</span>
+                <span className={`block ${i === rows.length - 1 ? 'serif text-[var(--fg-2)] !tracking-tight' : ''}`}>{row.join(' ')}</span>
               </span>
             ))}
           </h1>
@@ -130,6 +130,7 @@ export function DashboardPage() {
   const funnel = useQuery<Funnel>({ queryKey: ['funnel'], queryFn: () => api('/api/funnel') })
   const comp = useQuery<Compounding>({ queryKey: ['compounding'], queryFn: () => api('/api/compounding') })
   const evalQ = useQuery<EvalReport>({ queryKey: ['eval'], queryFn: () => api('/api/eval') })
+  const growth = useQuery<Growth>({ queryKey: ['growth'], queryFn: () => api('/api/learning/growth'), retry: false })
   const queue = useQuery<QueueResponse>({ queryKey: ['queue', 90, 240, ''], queryFn: () => api('/api/queue?horizon=90&capacityHours=240'), retry: false })
 
   if (dash.isError) return <p role="alert">The dashboard could not be loaded.</p>
@@ -300,6 +301,88 @@ export function DashboardPage() {
           </section>
         </ScrollReveal>
       </div>
+
+      {d.distributions && (
+        <ScrollReveal>
+          <section className="grid gap-10 lg:grid-cols-3" aria-labelledby="dist-h">
+            <div className="space-y-3">
+              <h2 id="dist-h" className="text-lg font-semibold">Confidence distribution</h2>
+              <ul className="space-y-2" aria-label="Cases by confidence level">
+                {(['HIGH', 'MEDIUM', 'LOW'] as const).map((k) => {
+                  const total = Object.values(d.distributions!.confidence).reduce((a, b) => a + b, 0) || 1
+                  return (
+                    <li key={k} className="text-sm">
+                      <div className="flex justify-between"><span>{k === 'LOW' ? 'LOW (monitor list)' : k}</span><span className="num">{d.distributions!.confidence[k]}</span></div>
+                      <div className="h-1.5 rounded bg-muted"><AnimatedBar value={d.distributions!.confidence[k] / total} className={k === 'HIGH' ? 'bg-[var(--tier-high)]' : k === 'MEDIUM' ? 'bg-[var(--tier-medium)]' : 'bg-[var(--tier-monitor)]'} /></div>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="text-xs text-muted-foreground">Confidence is the strength and agreement of evidence, not the risk score.</p>
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold">Evidence strength</h2>
+              <div className="h-40" role="img" aria-label={d.distributions.evidenceStrength.map((b) => `${b.bucket}: ${b.cases}`).join(', ')}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={d.distributions.evidenceStrength} margin={{ left: -20, right: 4 }}>
+                    <CartesianGrid vertical={false} strokeOpacity={0.25} />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: 'var(--muted)', opacity: 0.4 }} contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="cases" fill="var(--chart-1)" radius={[4, 4, 0, 0]} animationDuration={1200} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-muted-foreground">Independent channels agreeing: {d.distributions.channelsAgreeing.map((c) => `${c.channels} channel${c.channels === 1 ? '' : 's'}: ${c.cases} cases`).join(' · ')}</p>
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold">Trends and networks</h2>
+              <p className="text-sm">{Object.entries(d.trends ?? {}).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(' · ') || 'No trend data'}</p>
+              {d.networks && d.networks.length > 0 ? (
+                <ul className="divide-y border-y text-sm" aria-label="Emerging networks">
+                  {d.networks.map((n) => (
+                    <li key={n.caseId} className="flex items-center gap-2 py-2"><Link className="font-medium underline-offset-4 hover:underline" to={`/cases/${n.caseId}`}>{n.caseId}</Link><span className="text-xs text-muted-foreground">{n.providers} providers · {n.rules.join(', ')}</span><span className="num ml-auto">{money(n.dollars)}</span></li>
+                  ))}
+                </ul>
+              ) : <p className="text-sm text-muted-foreground">No relationship-based case in this run.</p>}
+              {d.outlook?.available && (
+                <p className="text-xs text-muted-foreground"><span className="chip chip-pred mr-2">prediction</span>Mean outlook across cases: {(['30', '60', '90'] as const).map((h) => `${h}d ${d.outlook!.mean[h] != null ? Math.round((d.outlook!.mean[h] as number) * 100) + '%' : '—'}`).join(' · ')}. {d.outlook.label}.</p>
+              )}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
+
+      {growth.data && (
+        <ScrollReveal>
+          <section className="grid gap-10 lg:grid-cols-5" aria-labelledby="learn-h">
+            <div className="space-y-3 lg:col-span-2">
+              <h2 id="learn-h" className="text-lg font-semibold">Institutional knowledge</h2>
+              <dl className="grid grid-cols-2 gap-4 border-y py-4">
+                <div><dt className="eyebrow">Approved lessons</dt><dd className="bignum text-3xl">{growth.data.approvedKnowledge}</dd></div>
+                <div><dt className="eyebrow">Waiting for review</dt><dd className="bignum text-3xl">{growth.data.pendingKnowledge}</dd></div>
+                <div><dt className="eyebrow">Reviewer precedents</dt><dd className="bignum text-3xl">{growth.data.livePrecedents}</dd></div>
+                <div><dt className="eyebrow">Feedback items</dt><dd className="bignum text-3xl">{growth.data.feedback}</dd></div>
+              </dl>
+              {growth.data.byDay.length > 0 && (
+                <div className="h-24" role="img" aria-label="Knowledge drafted per day">
+                  <ResponsiveContainer width="100%" height="100%"><BarChart data={growth.data.byDay} margin={{ left: -30 }}><XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} /><Bar dataKey="n" fill="var(--chart-2)" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3 lg:col-span-3">
+              <h2 className="text-lg font-semibold">Recent decisions</h2>
+              {growth.data.recentDecisions.length === 0 ? <p className="text-sm text-muted-foreground">No decision has been recorded yet.</p> : (
+                <ul className="divide-y border-y text-sm">
+                  {growth.data.recentDecisions.map((r, i) => (
+                    <li key={i} className="flex flex-wrap items-center gap-2 py-2"><Link className="font-medium underline-offset-4 hover:underline" to={`/cases/${r.case_id}`}>{r.case_id}</Link><span>{r.actor}</span><span className="chip chip-human">{r.action.toLowerCase()}</span><span className="eyebrow">{r.status.replace('_', ' ').toLowerCase()}</span><span className="mono ml-auto text-xs text-muted-foreground">{r.created_at.slice(0, 16).replace('T', ' ')}</span></li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
 
       {evalQ.data && (
         <ScrollReveal>

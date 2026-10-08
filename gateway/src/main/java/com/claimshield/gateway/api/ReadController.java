@@ -87,8 +87,13 @@ public class ReadController {
   public Map<String, Object> queue(@RequestParam(defaultValue = "90") int horizon,
       @RequestParam(defaultValue = "240") double capacityHours, @RequestParam(required = false) String tier,
       @RequestParam(required = false) String scheme, @RequestParam(required = false) String specialty,
-      @RequestParam(required = false) String status) {
-    return queue.queue(horizon, capacityHours, tier, scheme, specialty, status);
+      @RequestParam(required = false) String status, @RequestParam(required = false) String confidence,
+      @RequestParam(required = false) Double minEvidence, @RequestParam(required = false) Integer minMembers,
+      @RequestParam(required = false) Double minExposure, @RequestParam(required = false) Integer minRegions,
+      @RequestParam(required = false) String provider, @RequestParam(required = false) Boolean network,
+      @RequestParam(required = false) String q, @RequestParam(required = false) Double minRisk) {
+    return queue.queue(horizon, capacityHours, tier, scheme, specialty, status, new QueueService.Extra(confidence,
+        minEvidence, minMembers, minExposure, minRegions, provider, network, q, minRisk));
   }
 
   @GetMapping("/monitor")

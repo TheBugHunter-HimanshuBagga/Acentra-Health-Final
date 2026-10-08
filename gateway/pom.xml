@@ -131,6 +131,16 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
+					<!-- tests must never call a real AI or speech service, whatever is in the developer's .env -->
+					<systemPropertyVariables>
+						<LLM_MODE>template</LLM_MODE>
+						<VOICE_ENABLED>false</VOICE_ENABLED>
+						<GEMINI_API_KEY></GEMINI_API_KEY>
+						<GEMINI_API_KEY_2></GEMINI_API_KEY_2>
+						<GEMINI_API_KEY_3></GEMINI_API_KEY_3>
+						<ANTHROPIC_API_KEY></ANTHROPIC_API_KEY>
+						<SARVAM_API_KEY></SARVAM_API_KEY>
+					</systemPropertyVariables>
 					<includes>
 						<include>**/*Test.java</include>
 						<include>**/*Tests.java</include>

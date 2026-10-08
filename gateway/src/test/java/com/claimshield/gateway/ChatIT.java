@@ -93,7 +93,7 @@ class ChatIT extends GatewayIT {
 
     @Bean
     @Primary
-    LlmClient fakeLlm() {
+    LlmClient routingLlmClient() {
       return new FakeLlm();
     }
   }
@@ -428,5 +428,26 @@ class ChatIT extends GatewayIT {
     assertThat(h.get("voice").asString()).isEqualTo("OFF");
     assertThat(h.get("engine").asString()).isIn("UP", "DOWN");
     assertThat(h.toString()).doesNotContainIgnoringCase("key").doesNotContainIgnoringCase("token");
+  }
+
+  @Test
+  void impactAndWhyFlaggedAreAnsweredFromThePackWithItsOwnCitations() throws Exception {
+    String id = caseOf("P-0041");
+    JsonNode impact = ask("investigator", "What is the impact and how many members are affected?", "en", id);
+    assertThat(impact.get("intent").asString()).isEqualTo("CASE_IMPACT");
+    JsonNode pack = get("investigator", "/api/cases/" + id + "/evidence");
+    assertThat(allText(impact)).contains("distinct members").contains("$");
+    impact.get("blocks").forEach(b -> assertThat(b.get("sourceIds").get(0).asString()).startsWith("IM"));
+    String members = pack.get("impact").get("items").get(0).get("display").asString();
+    assertThat(allText(impact)).contains(members + " distinct members");
+
+    JsonNode why = ask("investigator", "Why was this case flagged?", "en", id);
+    assertThat(why.get("intent").asString()).isEqualTo("CASE_WHY_FLAGGED");
+    assertThat(allText(why)).contains("Flagged because").contains("Confidence:");
+    assertThat(why.get("blocks").get(0).get("sourceIds").get(0).asString()).isEqualTo("WHY");
+    assertThat(allText(why)).doesNotContainIgnoringCase("fraud");
+
+    JsonNode conf = ask("investigator", "How confident are we?", "en", id);
+    assertThat(allText(conf)).contains("Confidence:").contains("audited");
   }
 }

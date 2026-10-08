@@ -1,0 +1,112 @@
+/* =====================================================================================================
+   ClaimShield tokens. The palette, type and radius follow the Allotiq product theme exactly, as requested:
+   LIGHT = warm paper #f2f0e9 + ink #0c0e0d + deep green #00583f.  DARK = ink #0c0e0d + cream #f2f0e9 + lime #d4ff3a.
+   Tier colours always travel with a word or glyph, never colour alone.
+   ===================================================================================================== */
+:root, .light {
+    --radius: 1.125rem;
+    --background: #f2f0e9;
+    --foreground: #0c0e0d;
+    --ink: #0c0e0d;
+    --fg-2: #3d423f;
+    --fg-3: #5d6360;
+    --card: #ffffff;
+    --card-foreground: #0c0e0d;
+    --surface-2: #e7e4da;
+    --popover: #ffffff;
+    --popover-foreground: #0c0e0d;
+    --primary: #0c0e0d;
+    --primary-foreground: #f2f0e9;
+    --secondary: #ffffff;
+    --secondary-foreground: #0c0e0d;
+    --muted: #e7e4da;
+    --muted-foreground: #5d6360;
+    --accent: #d4ff3a;
+    --accent-foreground: #0c0e0d;
+    --destructive: #c4262b;
+    --border: #0c0e0d1a;
+    --input: #0c0e0d24;
+    --ring: #00583f;
+    --signal: #00583f;
+    --field: #0f7a55;
+    --lime: #d4ff3a;
+    --warn: #b7791f;
+    --ok: #0b6b3a;
+    --tier-high: #c4262b;
+    --tier-medium: #b7791f;
+    --tier-monitor: #5d6360;
+    --chart-1: #0f7a55;
+    --chart-2: #3e7bfa;
+    --chart-3: #d9621f;
+    --chart-4: #7c5cfa;
+    --chart-5: #d6509a;
+    --sidebar: #ece9df;
+    --sidebar-foreground: #0c0e0d;
+    --sidebar-primary: #0c0e0d;
+    --sidebar-primary-foreground: #f2f0e9;
+    --sidebar-accent: #ffffff;
+    --sidebar-accent-foreground: #0c0e0d;
+    --sidebar-border: #0c0e0d1a;
+    --sidebar-ring: #00583f;
+    --glow: #d4ff3a55;
+    --grid-line: #0c0e0d0d;
+}
+
+.dark {
+    --background: #0c0e0d;
+    --foreground: #f2f0e9;
+    --ink: #f2f0e9;
+    --fg-2: #c6ccc8;
+    --fg-3: #9aa29d;
+    --card: #161816;
+    --card-foreground: #f2f0e9;
+    --surface-2: #212421;
+    --popover: #161816;
+    --popover-foreground: #f2f0e9;
+    --primary: #f2f0e9;
+    --primary-foreground: #0c0e0d;
+    --secondary: #212421;
+    --secondary-foreground: #f2f0e9;
+    --muted: #212421;
+    --muted-foreground: #9aa29d;
+    --accent: #d4ff3a;
+    --accent-foreground: #0c0e0d;
+    --destructive: #ff6b6f;
+    --border: #ffffff17;
+    --input: #ffffff24;
+    --ring: #d4ff3a;
+    --signal: #d4ff3a;
+    --field: #18a06b;
+    --lime: #d4ff3a;
+    --warn: #ffd27a;
+    --ok: #6ee7a0;
+    --tier-high: #ff9a9d;
+    --tier-medium: #ffd27a;
+    --tier-monitor: #9aa29d;
+    --chart-1: #18a06b;
+    --chart-2: #4f86ff;
+    --chart-3: #e0691f;
+    --chart-4: #8f78ff;
+    --chart-5: #d95596;
+    --sidebar: #0c0e0d;
+    --sidebar-foreground: #f2f0e9;
+    --sidebar-primary: #d4ff3a;
+    --sidebar-primary-foreground: #0c0e0d;
+    --sidebar-accent: #212421;
+    --sidebar-accent-foreground: #f2f0e9;
+    --sidebar-border: #ffffff17;
+    --sidebar-ring: #d4ff3a;
+    --glow: #d4ff3a33;
+    --grid-line: #ffffff0b;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { font-family: 'Geist Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu',
+    'Noto Sans Gujarati', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { @apply bg-background text-foreground; }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque Variable', 'Geist Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif; letter-spacing: -0.03em; font-weight: 700; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+  .mono { font-family: 'Geist Mono Variable', ui-monospace, monospace; }
+}

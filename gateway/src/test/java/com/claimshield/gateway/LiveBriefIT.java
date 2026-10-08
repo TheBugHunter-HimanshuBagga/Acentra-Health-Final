@@ -31,7 +31,7 @@ class LiveBriefIT extends GatewayIT {
   static class Model {
     @Bean
     @Primary
-    LlmClient fake(BriefTemplate template) {
+    LlmClient routingLlmClient(BriefTemplate template) {
       tpl = template;
       return new LlmClient() {
         @Override

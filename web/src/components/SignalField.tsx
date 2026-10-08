@@ -24,7 +24,7 @@ export function SignalField({ className = '' }: { className?: string }) {
 
     const readColor = () => {
       const probe = document.createElement('span')
-      probe.style.color = 'var(--signal)'
+      probe.style.color = 'var(--field)'
       document.body.appendChild(probe)
       const m = getComputedStyle(probe).color.match(/[\d.]+/g)
       probe.remove()
@@ -49,8 +49,8 @@ export function SignalField({ className = '' }: { className?: string }) {
           const d = Math.hypot(x - pointer.x, y - pointer.y)
           const near = Math.max(0, 1 - d / 190)
           const fade = Math.min(1, x / (w * 0.55)) * (0.35 + 0.65 * (1 - y / h))
-          const a = (0.07 + 0.1 * (wave * 0.5 + 0.5) + near * 0.75) * fade
-          const r = 0.9 + near * 2.1 + (wave * 0.5 + 0.5) * 0.5
+          const a = (0.16 + 0.2 * (wave * 0.5 + 0.5) + near * 0.8) * fade
+          const r = 1.1 + near * 2.4 + (wave * 0.5 + 0.5) * 0.7
           ctx.fillStyle = `rgba(${color},${Math.min(a, 0.95).toFixed(3)})`
           ctx.beginPath()
           ctx.arc(x, y, r, 0, 6.2832)

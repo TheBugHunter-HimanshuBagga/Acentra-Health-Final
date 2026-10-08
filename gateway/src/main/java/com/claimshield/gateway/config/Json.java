@@ -18,6 +18,14 @@ public class Json {
     this.mapper = mapper;
   }
 
+  public tools.jackson.databind.node.ObjectNode mapperObject() {
+    return mapper.createObjectNode();
+  }
+
+  public tools.jackson.databind.node.ArrayNode mapperArray() {
+    return mapper.createArrayNode();
+  }
+
   public JsonNode tree(String json) {
     return mapper.readTree(json);
   }

@@ -133,7 +133,8 @@ describe('ChatDock', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(await screen.findByText('There are 18 cases.')).toBeInTheDocument()
     expect(screen.getByText('Validated facts only')).toBeInTheDocument()
-    expect(screen.getByText(/Sources: FUNNEL/)).toBeInTheDocument()
+    expect(screen.getByText('FUNNEL')).toBeInTheDocument()
+    expect(screen.getByText('Grounded in validated case evidence')).toBeInTheDocument()
     const body = m.callsTo('POST', '/api/chat')[0].body as { message: string; lang: string }
     expect(body.message).toBe('How many cases?')
     expect(body.lang).toBe('en')

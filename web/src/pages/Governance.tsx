@@ -41,6 +41,38 @@ function errText(e: unknown) {
   return e instanceof ApiError ? e.detail : 'That did not work. Please try again.'
 }
 
+const STEPS: { key: ExceptionRule['status']; label: string }[] = [
+  { key: 'DRAFT', label: 'Draft' },
+  { key: 'SIMULATED', label: 'Simulated' },
+  { key: 'PENDING_APPROVAL', label: 'Approval' },
+  { key: 'APPROVED', label: 'Active' },
+]
+
+/** Where an exception is in its governed life, and who still has to act. Two different people are always required. */
+function Stepper({ x }: { x: ExceptionRule }) {
+  const idx = Math.max(0, STEPS.findIndex((s) => s.key === x.status))
+  const ended = x.status === 'REJECTED' || x.status === 'RETIRED'
+  return (
+    <div className="space-y-2">
+      <ol className="flex items-center" aria-label="Governance progress">
+        {STEPS.map((s, i) => (
+          <li key={s.key} className="flex flex-1 items-center last:flex-none">
+            <span className="flex items-center gap-2">
+              <span className={`grid h-5 w-5 place-items-center rounded-full border-2 text-[0.6rem] ${!ended && i < idx ? 'border-[var(--ok)] bg-[var(--ok)] text-background' : !ended && i === idx ? 'border-[var(--signal)] text-[var(--signal)]' : 'border-border text-muted-foreground'}`}>{!ended && i < idx ? '✓' : i + 1}</span>
+              <span className={`eyebrow ${i === idx && !ended ? 'text-foreground' : ''}`}>{s.label}</span>
+            </span>
+            {i < STEPS.length - 1 && <span aria-hidden className={`mx-3 h-px flex-1 ${!ended && i < idx ? 'bg-[var(--ok)]' : 'bg-border'}`} />}
+          </li>
+        ))}
+      </ol>
+      <p className="text-xs text-muted-foreground">
+        <span className="chip chip-human mr-2">Two people</span>
+        proposed by <strong>{x.proposedBy}</strong>{x.approvedBy ? <>, decided by <strong>{x.approvedBy}</strong></> : ', approval needs a different person in the governance role'}
+      </p>
+    </div>
+  )
+}
+
 function ExceptionCard({ x, role, onError, open }: { x: ExceptionRule; role?: Role; onError: (m: string | null) => void; open: boolean }) {
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
@@ -60,12 +92,13 @@ function ExceptionCard({ x, role, onError, open }: { x: ExceptionRule; role?: Ro
   const sim = x.simulation
   const explanation = typeof x.explanation === 'object' && x.explanation ? (x.explanation as { text?: string; mode?: string }) : null
   return (
-    <article className="surface space-y-3 p-4" aria-label={x.excId} id={x.excId} data-open={open}>
+    <article className="panel space-y-4 p-5" aria-label={x.excId} id={x.excId} data-open={open}>
       <header className="flex flex-wrap items-center gap-3">
         <h3 className="font-medium"><span className="mono">{x.excId}</span> v{x.version}</h3>
         <span className="rounded-full border px-2 py-0.5 text-xs" data-testid={`exc-status-${x.excId}`}>{STATUS_TEXT[x.status]}</span>
         <span className="text-sm text-muted-foreground">proposed by {x.proposedBy}{x.approvedBy ? ` · decided by ${x.approvedBy}` : ''}</span>
       </header>
+      <Stepper x={x} />
       <p className="text-sm">
         <strong>{EFFECT_TEXT[x.effect] ?? x.effect}</strong> when rule {x.scope.rule_ids.join(', ')}
         {x.scope.specialty_code ? ` for ${x.scope.specialty_code}` : ''} fires and:
@@ -200,7 +233,8 @@ export function GovernancePage() {
   return (
     <section className="space-y-5">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Rules and exceptions</h1>
+        <p className="eyebrow">Governed knowledge</p>
+        <h1 className="display text-4xl md:text-5xl">Rules and exceptions</h1>
         <p className="text-sm text-muted-foreground">
           An exception teaches the system that a pattern was legitimate. It is drafted from a co-signed UNFOUNDED closure, simulated on real data, approved by a
           different person in the governance role, and only then applied in a re-run. Recorded-fact rules (such as billing after a date of death) can never be excepted.

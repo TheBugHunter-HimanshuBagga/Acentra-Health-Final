@@ -30,9 +30,13 @@ public class ChatTools {
 
   public enum Intent {
     CASE_SUMMARY, CASE_WHY_RANKED, CASE_EVIDENCE, CASE_TIMELINE, CASE_NETWORK, CASE_CONFIDENCE, CASE_ACTION,
-    CASE_OUTLOOK, CASE_PRECEDENTS, GLOSSARY, POLICY, PLATFORM_HELP, QUEUE_SUMMARY, RUN_CHANGES, NEEDS_CLARIFICATION,
-    REFUSE_MEDICAL, REFUSE_LEGAL, REFUSE_ACTION, REFUSE_INJECTION, REFUSE_EVASION
+    CASE_IMPACT, CASE_WHY_FLAGGED, CASE_OUTLOOK, CASE_PRECEDENTS, GLOSSARY, POLICY, PLATFORM_HELP, QUEUE_SUMMARY, RUN_CHANGES, NEEDS_CLARIFICATION,
+    HUMAN_HANDOFF, REFUSE_MEDICAL, REFUSE_LEGAL, REFUSE_ACTION, REFUSE_INJECTION, REFUSE_EVASION
   }
+
+  private static final Pattern HANDOFF = Pattern.compile(
+      "(?i)\\b(talk|speak|connect|chat|escalate|transfer|hand ?off)\\b.*\\b(human|person|agent|specialist|someone|people)\\b"
+          + "|\\b(human|live|real) (agent|support|specialist|person|help)\\b|\\bneed (a )?(human|person|specialist)\\b");
 
   /** The result of a tool call: what the answer may say, and the closed world it may cite. */
   public record Facts(Intent intent, List<Sentence> sentences, JsonNode pack, Set<String> sourceIds,
@@ -90,11 +94,20 @@ public class ChatTools {
     if (ACTION.matcher(t).find()) {
       return Intent.REFUSE_ACTION;
     }
+    if (HANDOFF.matcher(t).find()) {
+      return Intent.HUMAN_HANDOFF;
+    }
     if (POLICY_ID.matcher(text == null ? "" : text).find() || has(t, "policy", "policies", "rule say", "what does the rule")) {
       return Intent.POLICY;
     }
     boolean caseish = hasCase || CASE_ID.matcher(t).find();
     if (caseish) {
+      if (has(t, "impact", "affected", "how many members", "how many claims", "exposure")) {
+        return Intent.CASE_IMPACT;
+      }
+      if (has(t, "flagged", "why was this", "why did", "not escalated", "not flagged")) {
+        return Intent.CASE_WHY_FLAGGED;
+      }
       if (has(t, "predict", "outlook", "next month", "likely", "future", "thirty", "sixty", "ninety")
           || t.matches(".*\\b(30|60|90)\\b.*")) {
         return Intent.CASE_OUTLOOK;
@@ -154,7 +167,7 @@ public class ChatTools {
     Matcher m = CASE_ID.matcher(englishText == null ? "" : englishText);
     String caseId = m.find() ? "CASE-" + m.group(1) : contextCaseId;
     return switch (intent) {
-      case CASE_SUMMARY, CASE_WHY_RANKED, CASE_EVIDENCE, CASE_TIMELINE, CASE_NETWORK, CASE_CONFIDENCE, CASE_ACTION,
+      case CASE_SUMMARY, CASE_IMPACT, CASE_WHY_FLAGGED, CASE_WHY_RANKED, CASE_EVIDENCE, CASE_TIMELINE, CASE_NETWORK, CASE_CONFIDENCE, CASE_ACTION,
           CASE_PRECEDENTS -> caseFacts(intent, caseId);
       case CASE_OUTLOOK -> outlook(caseId);
       case GLOSSARY -> glossary(englishText);
@@ -186,13 +199,29 @@ public class ChatTools {
       case CASE_EVIDENCE -> {
         add(out, brief.get("summary"), 6);
       }
+      case CASE_IMPACT -> {
+        for (JsonNode i : pack.get("impact").get("items")) {
+          out.add(new Sentence(i.get("whyTemplate").asString(), List.of(i.get("id").asString())));
+        }
+      }
+      case CASE_WHY_FLAGGED -> {
+        out.add(new Sentence(pack.get("explanation").get("headline").asString(), List.of("WHY")));
+        out.add(new Sentence(pack.get("confidence").get("statement").asString(), List.of("CONF")));
+        for (JsonNode c : pack.get("confidence").get("evidence").get("contradicting")) {
+          out.add(new Sentence(c.get("text").asString(), List.of(c.get("id").asString())));
+        }
+        for (JsonNode m : pack.get("confidence").get("evidence").get("missing")) {
+          out.add(new Sentence(m.asString(), List.of("CONF")));
+        }
+      }
       case CASE_TIMELINE -> add(out, brief.get("timeline_notes"), 6);
       case CASE_NETWORK -> {
         add(out, brief.get("network_notes"), 4);
         add(out, brief.get("precedent_notes"), 0);
       }
       case CASE_CONFIDENCE -> {
-        out.add(one(brief.get("confidence_statement")));
+        out.add(new Sentence(pack.get("confidence").get("statement").asString(), List.of("CONF")));
+        out.add(new Sentence(pack.get("confidence").get("route").get("text").asString(), List.of("CONF")));
         add(out, brief.get("limitations"), 3, "limitation_ids");
       }
       case CASE_ACTION -> {

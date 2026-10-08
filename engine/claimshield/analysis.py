@@ -52,6 +52,11 @@ class Workspace:
     spec_of: dict
     data_hash: str
     investigations: list[dict] = field(default_factory=list)
+    member_region: dict = field(default_factory=dict)
+    provider_region: dict = field(default_factory=dict)
+    provider_rural: dict = field(default_factory=dict)
+    provider_facility: dict = field(default_factory=dict)
+    hcpcs_family: dict = field(default_factory=dict)
 
     def close(self) -> None:
         self.con.close()
@@ -90,6 +95,13 @@ def _predict(con, gt_path: Path, enroll: dict) -> dict:
     return model.run_prediction(snaps, labels, labels_mod.load_splits(gt_path))
 
 
+def _facility_map(con) -> dict:
+    out: dict = defaultdict(list)
+    for p, f in con.execute("SELECT provider_id, facility_id FROM provider_facility").fetchall():
+        out[p].append(f)
+    return dict(out)
+
+
 def load_workspace(claims_path: Path, gt_path: Path) -> Workspace:
     con = duckdb.connect(str(claims_path))
     rules.run_all_rules(con)
@@ -122,7 +134,12 @@ def load_workspace(claims_path: Path, gt_path: Path) -> Workspace:
             "JOIN out_rule_hit h ON h.claim_id = l.claim_id AND h.line_no = l.line_no").fetchall()},
         hit_meta={(h["claim_id"], h["line_no"], h["rule_id"]): h for h in hits}, pfeat=pfeat, pred=pred,
         view_data=views.load_view_data(con), seeds=seeds, fv_stats=stats, spec_of=spec_of,
-        data_hash=hashlib.sha256(manifest.encode()).hexdigest(), investigations=invs)
+        data_hash=hashlib.sha256(manifest.encode()).hexdigest(), investigations=invs,
+        member_region=dict(con.execute("SELECT member_id, region FROM member_location").fetchall()),
+        provider_region=dict(con.execute("SELECT provider_id, region FROM provider_location").fetchall()),
+        provider_rural=dict(con.execute("SELECT provider_id, is_rural FROM provider_location").fetchall()),
+        provider_facility=_facility_map(con),
+        hcpcs_family=dict(con.execute("SELECT hcpcs, family FROM ref_hcpcs").fetchall()))
 
 
 @dataclass
@@ -254,7 +271,10 @@ def analyse(ws: Workspace, *, run_id: str, previous: dict | None = None,
                                               for c, v in sorted(hyp.items(), key=lambda kv: (-kv[1], kv[0]))],
                                "alerts": len(pa)})
     ctx = PackContext(run_id=run_id, asof=ref.ASOF, provider_info=ws.prov, hcpcs_label=ws.hcpcs_label,
-                      exclusion_dt=ws.excl)
+                      exclusion_dt=ws.excl, member_region=ws.member_region, provider_region=ws.provider_region,
+                      provider_rural=ws.provider_rural, provider_facility=ws.provider_facility,
+                      hcpcs_family=ws.hcpcs_family, member_acuity=ws.acuity,
+                      mean_acuity=(sum(ws.acuity.values()) / len(ws.acuity)) if ws.acuity else 0.0)
     rows = rows_mod.build_rows(run_id, scored, ctx, ws.units, ws.hit_meta, capacity_hours, view_data=ws.view_data,
                                suppressed=sup_groups)
     in_cap_lines = {k for s in scored if rows["in_capacity"].get(s.draft.case_id) for k in s.line_dollars}

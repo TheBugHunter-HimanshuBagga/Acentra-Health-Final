@@ -46,6 +46,12 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   await caseLinks.first().click()
   await expect(page.getByRole('heading', { name: caseId })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Evidence', exact: true })).toBeVisible()
+  // confidence is a separate axis from risk; impact figures explain themselves; the reasoning chain ends with a person
+  await expect(page.getByRole('heading', { name: 'How sure are we, and why' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Case impact' })).toBeVisible()
+  await expect(page.getByText('Why do we believe this?').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Reasoning chain' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /HUMAN REVIEW/ })).toBeVisible()
   await expect(page.getByText(/\d+ lines (have|were|duplicate|exceed)|equipment orders/).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Claim lines', exact: true })).toBeVisible()
 

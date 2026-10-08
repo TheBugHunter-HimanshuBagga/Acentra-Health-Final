@@ -1,115 +1,13 @@
-/* =====================================================================================================
-   ClaimShield design system. Light = warm paper + ink + one deep-blue accent. Dark = near-black ink +
-   a cool cyan "signal" accent. Tier colours always travel with a word or glyph, never colour alone.
-   ===================================================================================================== */
-:root {
-    --radius: 0.5rem;
-    --background: oklch(0.972 0.006 85);
-    --foreground: oklch(0.2 0.02 255);
-    --ink: oklch(0.2 0.02 255);
-    --card: oklch(0.992 0.003 85);
-    --card-foreground: oklch(0.2 0.02 255);
-    --surface-2: oklch(0.955 0.008 85);
-    --popover: oklch(0.992 0.003 85);
-    --popover-foreground: oklch(0.2 0.02 255);
-    --primary: oklch(0.42 0.17 255);
-    --primary-foreground: oklch(0.99 0.003 85);
-    --secondary: oklch(0.94 0.008 85);
-    --secondary-foreground: oklch(0.25 0.02 255);
-    --muted: oklch(0.947 0.008 85);
-    --muted-foreground: oklch(0.48 0.02 255);
-    --accent: oklch(0.935 0.012 250);
-    --accent-foreground: oklch(0.25 0.04 255);
-    --destructive: oklch(0.55 0.21 25);
-    --border: oklch(0.2 0.02 255 / 12%);
-    --input: oklch(0.2 0.02 255 / 16%);
-    --ring: oklch(0.5 0.17 255);
-    --signal: oklch(0.5 0.14 225);
-    --warn: oklch(0.6 0.15 70);
-    --ok: oklch(0.52 0.14 155);
-    --tier-high: oklch(0.55 0.21 25);
-    --tier-medium: oklch(0.6 0.15 70);
-    --tier-monitor: oklch(0.52 0.03 255);
-    --chart-1: oklch(0.5 0.16 250);
-    --chart-2: oklch(0.6 0.12 200);
-    --chart-3: oklch(0.6 0.15 70);
-    --chart-4: oklch(0.55 0.21 25);
-    --chart-5: oklch(0.4 0.03 255);
-    --sidebar: oklch(0.985 0.004 85);
-    --sidebar-foreground: oklch(0.25 0.02 255);
-    --sidebar-primary: oklch(0.42 0.17 255);
-    --sidebar-primary-foreground: oklch(0.99 0 0);
-    --sidebar-accent: oklch(0.94 0.01 250);
-    --sidebar-accent-foreground: oklch(0.2 0.03 255);
-    --sidebar-border: oklch(0.2 0.02 255 / 10%);
-    --sidebar-ring: oklch(0.5 0.17 255);
-    --glow: oklch(0.5 0.17 255 / 14%);
-    --grid-line: oklch(0.2 0.02 255 / 6%);
-}
-
-.dark {
-    --background: oklch(0.135 0.012 255);
-    --foreground: oklch(0.955 0.005 255);
-    --ink: oklch(0.955 0.005 255);
-    --card: oklch(0.172 0.014 255);
-    --card-foreground: oklch(0.955 0.005 255);
-    --surface-2: oklch(0.205 0.016 255);
-    --popover: oklch(0.19 0.015 255);
-    --popover-foreground: oklch(0.955 0.005 255);
-    --primary: oklch(0.8 0.12 215);
-    --primary-foreground: oklch(0.16 0.02 255);
-    --secondary: oklch(0.23 0.016 255);
-    --secondary-foreground: oklch(0.955 0.005 255);
-    --muted: oklch(0.215 0.014 255);
-    --muted-foreground: oklch(0.7 0.015 255);
-    --accent: oklch(0.255 0.03 235);
-    --accent-foreground: oklch(0.96 0.01 240);
-    --destructive: oklch(0.72 0.18 25);
-    --border: oklch(1 0 0 / 9%);
-    --input: oklch(1 0 0 / 13%);
-    --ring: oklch(0.8 0.12 215);
-    --signal: oklch(0.82 0.12 210);
-    --warn: oklch(0.82 0.14 80);
-    --ok: oklch(0.8 0.15 155);
-    --tier-high: oklch(0.72 0.18 25);
-    --tier-medium: oklch(0.82 0.14 80);
-    --tier-monitor: oklch(0.72 0.02 255);
-    --chart-1: oklch(0.8 0.12 215);
-    --chart-2: oklch(0.72 0.13 175);
-    --chart-3: oklch(0.82 0.14 80);
-    --chart-4: oklch(0.72 0.18 25);
-    --chart-5: oklch(0.6 0.03 255);
-    --sidebar: oklch(0.155 0.013 255);
-    --sidebar-foreground: oklch(0.93 0.008 255);
-    --sidebar-primary: oklch(0.8 0.12 215);
-    --sidebar-primary-foreground: oklch(0.16 0.02 255);
-    --sidebar-accent: oklch(0.235 0.02 250);
-    --sidebar-accent-foreground: oklch(0.98 0.005 255);
-    --sidebar-border: oklch(1 0 0 / 8%);
-    --sidebar-ring: oklch(0.8 0.12 215);
-    --glow: oklch(0.8 0.12 215 / 18%);
-    --grid-line: oklch(1 0 0 / 5%);
-}
-
-@layer base {
-  * { @apply border-border outline-ring/50; }
-  html { font-family: 'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu',
-    'Noto Sans Gujarati', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', sans-serif;
-    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-  body { @apply bg-background text-foreground; }
-  h1, h2, h3 { font-family: 'Space Grotesk Variable', 'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif; letter-spacing: -0.02em; }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
-  .mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
-}
+@import "./tokens.css";
 
 /* ---- typographic primitives ---- */
-.eyebrow { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted-foreground); }
-.display { font-family: 'Space Grotesk Variable', 'Inter Variable', sans-serif; letter-spacing: -0.035em; line-height: 0.98; font-weight: 600; }
+.eyebrow { font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-foreground); }
+.display { font-family: 'Bricolage Grotesque Variable', 'Geist Variable', sans-serif; letter-spacing: -0.045em; line-height: 0.95; font-weight: 780; }
 .num { font-variant-numeric: tabular-nums; }
-.bignum { font-family: 'Space Grotesk Variable', sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; font-weight: 500; line-height: 1; }
+.bignum { font-family: 'Bricolage Grotesque Variable', sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; font-weight: 600; line-height: 1; }
 
 /* ---- surfaces: structure comes from hairlines first, panels only where grouping helps ---- */
-.panel, .surface { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease; }
+.panel, .surface { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease; }
 .panel:hover, .surface:hover { border-color: color-mix(in oklab, var(--primary) 28%, var(--border)); }
 .hairline-b { border-bottom: 1px solid var(--border); }
 .hairline-t { border-top: 1px solid var(--border); }
@@ -119,7 +17,7 @@
 
 /* ---- tier + provenance language: FACT / SIGNAL / CORROBORATION / PREDICTION / HUMAN DECISION ---- */
 .tier-high { color: var(--tier-high); } .tier-medium { color: var(--tier-medium); } .tier-monitor { color: var(--tier-monitor); }
-.chip { display: inline-flex; align-items: center; gap: .35rem; font-family: 'JetBrains Mono Variable', ui-monospace, monospace; font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; padding: .18rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: .35rem; font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; padding: .18rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap; }
 .chip::before { content: ''; width: .4rem; height: .4rem; border-radius: 50%; background: currentColor; }
 .chip-fact { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 40%, transparent); background: color-mix(in oklab, var(--ok) 9%, transparent); }
 .chip-signal { color: var(--signal); border-color: color-mix(in oklab, var(--signal) 40%, transparent); background: color-mix(in oklab, var(--signal) 9%, transparent); }
@@ -155,3 +53,6 @@ html.theme-fade, html.theme-fade * { transition: background-color .45s ease, col
   .ticker { animation: none; }
   ::view-transition-new(root) { animation: none; clip-path: none; }
 }
+
+.serif { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: -0.02em; }
+.lime { background: var(--lime); color: #0c0e0d; }

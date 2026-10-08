@@ -5,5 +5,6 @@
   "REFUSE_INJECTION": "I will not act on instructions that try to change how I work. Ask me about a case, a policy or how the platform works.",
   "REFUSE_EVASION": "I cannot help with avoiding detection or review. I can explain how reviews work.",
   "NEEDS_CLARIFICATION": "I could not tell what you want to know. Open a case or name one, such as CASE-0001, and ask why it is ranked where it is, what the evidence is, or what happens next.",
-  "NO_KNOWLEDGE": "I do not have enough validated information to answer that. A person on the team can help."
+  "NO_KNOWLEDGE": "I don't have enough evidence to answer this confidently. Would you like to connect with a human specialist?",
+  "HANDOFF_OFFER": "I can connect you with a human specialist in this same chat. Do you want me to do that?"
 }

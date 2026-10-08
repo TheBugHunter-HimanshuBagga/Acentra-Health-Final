@@ -108,3 +108,39 @@ CREATE TRIGGER IF NOT EXISTS wf_audit_no_delete BEFORE DELETE ON wf_audit_event
 BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END
 ^^^
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON wf_audit_event (entity_type, entity_id, seq)
+^^^
+CREATE TABLE IF NOT EXISTS wf_ai_output (
+  output_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, purpose TEXT NOT NULL, pack_sha256 TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (mode IN ('LLM','TEMPLATE')), badge TEXT NOT NULL, model TEXT,
+  output_json TEXT NOT NULL, validation_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE (case_id, purpose, pack_sha256)
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_feedback (
+  feedback_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT NOT NULL,
+  target TEXT NOT NULL CHECK (target IN ('REASONING','BRIEF','PRECEDENT','RECOMMENDATION','CHAT')),
+  rating TEXT NOT NULL CHECK (rating IN ('USEFUL','NOT_USEFUL')),
+  categories_json TEXT NOT NULL DEFAULT '[]', comment TEXT,
+  decision TEXT NOT NULL DEFAULT 'NONE' CHECK (decision IN ('ACCEPTED','MODIFIED','REJECTED','NONE')),
+  ai_recommendation TEXT, ai_confidence TEXT, pack_sha256 TEXT, created_at TEXT NOT NULL
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_knowledge_item (
+  item_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, body_json TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('AI','DETERMINISTIC')), model TEXT, pack_sha256 TEXT,
+  scheme_type TEXT, specialty_code TEXT, evidence_ids_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL CHECK (status IN ('PENDING_REVIEW','APPROVED','REJECTED','RETIRED')),
+  created_by TEXT NOT NULL, created_at TEXT NOT NULL, reviewed_by TEXT, reviewed_at TEXT, review_notes TEXT
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_handoff (
+  handoff_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, requested_by TEXT NOT NULL, reason TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('WAITING','ACTIVE','CLOSED')), agent TEXT, case_id TEXT,
+  created_at TEXT NOT NULL, joined_at TEXT, closed_at TEXT
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_handoff_message (
+  message_id TEXT PRIMARY KEY, handoff_id TEXT NOT NULL REFERENCES wf_handoff(handoff_id),
+  sender_role TEXT NOT NULL CHECK (sender_role IN ('USER','AGENT','SYSTEM')), sender TEXT NOT NULL,
+  text TEXT NOT NULL, created_at TEXT NOT NULL
+)

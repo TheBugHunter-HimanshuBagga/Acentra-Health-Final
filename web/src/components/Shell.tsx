@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { BookMarked, LayoutDashboard, Library, ListChecks, Moon, ScrollText, SlidersHorizontal, Sun } from 'lucide-react'
+import { BookMarked, Headset, LayoutDashboard, Library, ListChecks, Moon, ScrollText, SlidersHorizontal, Sun } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ChatDock } from '@/components/ChatDock'
+import { CommandPalette } from '@/components/CommandPalette'
 import { setUiLanguage } from '@/i18n'
 import { api, ApiError } from '@/lib/api'
 import { useAuthActions, useMe, useSavePrefs } from '@/lib/auth'
@@ -21,14 +22,18 @@ const NAV = [
   { to: '/governance', key: 'nav.governance', icon: SlidersHorizontal, end: false },
   { to: '/audit', key: 'nav.audit', icon: ScrollText, end: false },
   { to: '/library', key: 'nav.library', icon: Library, end: false },
+  { to: '/agent', key: 'nav.agent', icon: Headset, end: false },
 ] as const
 
-const select = 'h-8 rounded-md border bg-transparent px-2 text-xs hover:border-primary focus-visible:border-primary'
+const select = 'h-8 rounded-full border bg-transparent px-2 text-xs hover:border-primary focus-visible:border-primary'
 
 function Mark() {
   return (
-    <span aria-hidden className="relative grid h-7 w-7 place-items-center rounded-lg border bg-gradient-to-br from-[var(--signal)]/30 to-transparent">
-      <span className="h-2.5 w-2.5 rounded-[3px] bg-[var(--signal)] shadow-[0_0_14px_var(--signal)]" />
+    <span aria-hidden className="lime grid h-7 w-7 grid-cols-2 place-items-center gap-[3px] rounded-[9px] p-[6px]">
+      <span className="h-full w-full rounded-[2px] bg-[#0c0e0d]" />
+      <span className="h-full w-full rounded-[2px] bg-[#0c0e0d]/35" />
+      <span className="h-full w-full rounded-[2px] bg-[#0c0e0d]/35" />
+      <span className="h-full w-full rounded-[2px] bg-[#0c0e0d]" />
     </span>
   )
 }
@@ -72,7 +77,8 @@ export function Shell() {
     }
   }
 
-  const here = NAV.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))
+  const nav = NAV.filter((n) => n.to !== '/agent' || user.role === 'SUPERVISOR' || user.role === 'GOVERNANCE')
+  const here = nav.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))
   const crumb = loc.pathname.startsWith('/cases/') ? loc.pathname.split('/')[2] : here ? t(here.key) : ''
 
   return (
@@ -85,18 +91,18 @@ export function Shell() {
         </div>
         <p className="eyebrow mb-2 px-2">Workspace</p>
         <nav aria-label="Main" className="flex flex-col gap-0.5">
-          {NAV.map(({ to, key, icon: Icon, end }) => (
+          {nav.map(({ to, key, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'}`
+                `group relative flex items-center gap-2.5 rounded-full px-3 py-2 text-sm ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'}`
               }
             >
               {({ isActive }) => (
                 <>
-                  <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded bg-[var(--signal)] transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`} />
+                  <span aria-hidden className={`absolute left-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[var(--signal)] transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`} />
                   <Icon aria-hidden className="h-4 w-4" />
                   {t(key)}
                 </>
@@ -139,21 +145,24 @@ export function Shell() {
               ))}
             </select>
           </label>
+          <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))} className="hidden h-8 items-center gap-2 rounded-full border px-3 text-xs text-muted-foreground hover:border-primary md:inline-flex" aria-label="Search">
+            Search <kbd className="mono text-[0.65rem]">Ctrl K</kbd>
+          </button>
           <button
             ref={themeBtn}
             type="button"
             aria-label={t('nav.theme')}
             aria-pressed={theme === 'dark'}
             onClick={() => toggle(themeBtn.current)}
-            className="grid h-8 w-8 place-items-center rounded-md border hover:border-primary"
+            className="grid h-8 w-8 place-items-center rounded-full border hover:border-primary"
           >
             {theme === 'dark' ? <Sun aria-hidden className="h-4 w-4" /> : <Moon aria-hidden className="h-4 w-4" />}
           </button>
-          <button type="button" onClick={() => void logout()} className="h-8 rounded-md border px-3 text-xs hover:border-primary">
+          <button type="button" onClick={() => void logout()} className="h-8 rounded-full border px-3 text-xs hover:border-primary">
             {t('nav.signOut')}
           </button>
           <nav aria-label="Main (compact)" className="flex w-full gap-4 overflow-x-auto pb-1 text-sm lg:hidden">
-            {NAV.map(({ to, key }) => (
+            {nav.map(({ to, key }) => (
               <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `whitespace-nowrap ${isActive ? 'font-semibold text-foreground underline underline-offset-4' : 'text-muted-foreground'}`}>
                 {t(key)}
               </NavLink>
@@ -167,13 +176,14 @@ export function Shell() {
           </p>
         )}
         <p className="px-4 pt-2 text-xs text-muted-foreground lg:hidden">{t('app.banner')}</p>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 space-y-4 p-4 pb-24">
+        <main id="main" className="mx-auto w-full max-w-[1500px] flex-1 space-y-4 p-4 pb-24 md:px-8">
           <PageTransition routeKey={loc.pathname}>
             <Outlet />
           </PageTransition>
         </main>
       </div>
       <ChatDock />
+      <CommandPalette onToggleTheme={() => toggle(themeBtn.current)} showAgent={user.role === 'SUPERVISOR' || user.role === 'GOVERNANCE'} />
     </div>
   )
 }

@@ -11,7 +11,7 @@ interface Help { articleId: string; title: string; body: string }
 interface Finding { findingId?: string; type: string; severity: string; message: string }
 interface KGraph { nodes: { id: string; type: string; label: string }[]; edges: { id: string; source: string; target: string; type: string }[] }
 
-const TYPE_COLOR: Record<string, string> = { policy: '#4f46e5', rule: '#0d9488', exception: '#d97706', precedent: '#9333ea' }
+const TYPE_COLOR: Record<string, string> = { policy: '#4f86ff', rule: '#18a06b', exception: '#ffd27a', precedent: '#8f78ff' }
 
 function KnowledgeGraph() {
   const q = useQuery<KGraph>({ queryKey: ['kgraph'], queryFn: () => api('/api/knowledge/graph') })

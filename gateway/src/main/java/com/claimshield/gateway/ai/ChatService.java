@@ -60,7 +60,8 @@ public class ChatService {
       "REFUSE_EVASION", "I cannot help with avoiding detection or review. I can explain how reviews work.",
       "NEEDS_CLARIFICATION", "I could not tell what you want to know. Open a case or name one, such as CASE-0001, "
           + "and ask why it is ranked where it is, what the evidence is, or what happens next.",
-      "NO_KNOWLEDGE", "I do not have enough validated information to answer that. A person on the team can help.");
+      "NO_KNOWLEDGE", "I don't have enough evidence to answer this confidently. Would you like to connect with a human specialist?",
+      "HANDOFF_OFFER", "I can connect you with a human specialist in this same chat. Do you want me to do that?");
 
   private final JdbcTemplate jdbc;
   private final Json json;
@@ -134,11 +135,12 @@ public class ChatService {
     ChatTools.Intent intent = tools.route(english, ctx.caseId() != null);
     ChatTools.Facts facts = tools.run(intent, english, ctx.caseId(), ctx.horizon() == null ? 90 : ctx.horizon());
     List<Sentence> sentences = facts.sentences();
+    final ChatTools.Intent routed = intent;
     String mode = "FACTS_ONLY";
     boolean refusal = intent.name().startsWith("REFUSE_");
     if (refusal) {
       mode = "REFUSAL";
-    } else if (facts.insufficient() || sentences.isEmpty()) {
+    } else if ((facts.insufficient() || sentences.isEmpty()) && intent != ChatTools.Intent.HUMAN_HANDOFF) {
       intent = intent == ChatTools.Intent.NEEDS_CLARIFICATION ? intent : ChatTools.Intent.NEEDS_CLARIFICATION;
     }
     ChatValidator.Turn turn = new ChatValidator.Turn(facts.pack(), facts.sourceIds(), facts.numbers(), facts.trusted(),
@@ -161,8 +163,8 @@ public class ChatService {
     }
     // 3. render the validated English text
     List<Map<String, Object>> blocks = new ArrayList<>();
-    String fixedKey = refusal ? intent.name() : (sentences.isEmpty() ? (facts.insufficient()
-        && intent != ChatTools.Intent.NEEDS_CLARIFICATION ? "NO_KNOWLEDGE" : "NEEDS_CLARIFICATION") : null);
+    String fixedKey = intent == ChatTools.Intent.HUMAN_HANDOFF ? "HANDOFF_OFFER" : refusal ? intent.name() : (sentences.isEmpty() ? (facts.insufficient()
+        && routed != ChatTools.Intent.NEEDS_CLARIFICATION ? "NO_KNOWLEDGE" : "NEEDS_CLARIFICATION") : null);
     if (fixedKey != null) {
       String en = FIXED.get(fixedKey);
       String shown = en;
@@ -235,6 +237,7 @@ public class ChatService {
     out.put("blocks", blocks);
     out.put("links", facts.links());
     out.put("insufficientKnowledge", fixedKey != null && !refusal);
+    out.put("handoffOffered", "HANDOFF_OFFER".equals(fixedKey) || "NO_KNOWLEDGE".equals(fixedKey));
     out.put("notices", notices);
     out.put("label", "LLM".equals(mode) ? "Validated answer" : refusal ? "Safety response" : "Validated facts only");
     return out;

@@ -9,12 +9,13 @@ import hashlib
 import json
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from claimshield import reference as ref
 from claimshield.brain import precedents as prec
 from claimshield.cases.score import ScoredCase
+from claimshield.evidence import insight
 
 PACK_VERSION = "pk_v1"
 MAX_CLAIM_REFS = 10
@@ -28,6 +29,14 @@ class PackContext:
     provider_info: dict[str, dict]        # provider_id -> {specialty_code, name_syn, enroll_dt}
     hcpcs_label: dict[str, str]
     exclusion_dt: dict[str, date]
+    # context for the impact and confidence sections (empty when a dataset lacks it)
+    member_region: dict[str, int] = field(default_factory=dict)
+    provider_region: dict[str, int] = field(default_factory=dict)
+    provider_rural: dict[str, bool] = field(default_factory=dict)
+    provider_facility: dict[str, list[str]] = field(default_factory=dict)
+    hcpcs_family: dict[str, str] = field(default_factory=dict)
+    member_acuity: dict[str, float] = field(default_factory=dict)
+    mean_acuity: float = 0.0
 
 
 CHANNEL_ORDER = {"LINE": 0, "NETWORK": 1, "PEER": 2, "SELF": 3}
@@ -244,6 +253,7 @@ def build_pack(sc: ScoredCase, ctx: PackContext) -> dict:
             "firstServiceDt": first.isoformat(), "lastServiceDt": last.isoformat(),
             "claimRefs": [h["claim_id"] for h in top[:MAX_CLAIM_REFS]], "examples": examples,
             "policyRefs": [policy_id],
+            "observation": insight.observation(rule_id, hs, stat, strength),
         })
         if channel == "NETWORK":
             network.append(_network_entry(len(network) + 1, eid, rule_id, stat, numbers, entities))
@@ -322,6 +332,10 @@ def build_pack(sc: ScoredCase, ctx: PackContext) -> dict:
                                     "of the same specialty, not its cause; dollars marked estimated are inferred, "
                                     "not recorded payments."})
 
+    action = default_action_for(sc)
+    permitted = ref.permitted_actions(sc.tier)
+    ins = insight.build_insight(sc, evidence, numbers, precedents_out, policies, ctx, limitations, action, permitted)
+
     pack = {
         "packVersion": PACK_VERSION, "caseId": d.case_id, "runId": ctx.run_id, "asof": ctx.asof.isoformat(),
         "subjects": subjects,
@@ -338,6 +352,8 @@ def build_pack(sc: ScoredCase, ctx: PackContext) -> dict:
         "hypotheses": [h["code"] for h in sc.hypotheses],
         "insufficientEvidenceRequired": sc.tier == "LOW",
         "forbiddenTerms": ref.FORBIDDEN_TERMS,
+        "impact": ins["impact"], "confidence": ins["confidence"], "reasoning": ins["reasoning"],
+        "explanation": ins["explanation"],
     }
     pack["packSha256"] = pack_sha256(pack)
     return pack

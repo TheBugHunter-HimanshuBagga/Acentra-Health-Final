@@ -42,6 +42,18 @@ claimshield:
     api-key: ${ANTHROPIC_API_KEY:}
     base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
     timeout-seconds: 25
+  gemini:
+    model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
+    key: ${GEMINI_API_KEY:}
+    key-2: ${GEMINI_API_KEY_2:}
+    key-3: ${GEMINI_API_KEY_3:}
+    key-4: ${GEMINI_API_KEY_4:}
+    key-5: ${GEMINI_API_KEY_5:}
+    key-6: ${GEMINI_API_KEY_6:}
+    rpm: ${GEMINI_RPM:0}            # 0 = the model family's free-tier default
+    tpm: ${GEMINI_TPM:0}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+    timeout-seconds: 40
   sarvam:
     enabled: ${VOICE_ENABLED:false}
     api-key: ${SARVAM_API_KEY:}

@@ -42,3 +42,8 @@ data/demo/*.shm
 Thumbs.db
 .idea/
 .vscode/
+
+# downloaded CMS files and the generated CMS-based databases (large; rebuild with the adapter)
+data/raw/
+data/cms/
+data/e2e-*/

@@ -159,7 +159,8 @@ GT_MARKERS = ("gt.duckdb", "gt_path", "gt_db_path", "gt_claim_label", "gt_scheme
 
 def test_only_generation_eval_and_the_orchestrator_may_touch_ground_truth():
     src = REPO / "engine" / "claimshield"
-    allowed = {"generate", "eval"}
+    # adapters build a dataset (and the labels of its synthetic overlay) exactly as generate does; detection never imports them
+    allowed = {"generate", "eval", "adapters"}
     # orchestrators only pass the path along (make_fixture must, or the pipeline would default to the real gt file)
     # main.py is the API: it only passes the ground-truth path on to the pipeline
     orchestrators = ("pipeline.py", "analysis.py", "paths.py", "make_fixture.py", "main.py")

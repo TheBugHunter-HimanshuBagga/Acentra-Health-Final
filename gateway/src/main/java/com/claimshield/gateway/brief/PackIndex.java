@@ -74,6 +74,32 @@ final class PackIndex {
     for (JsonNode n : pack.get("precedents")) {
       add(n.get("id").asString(), n, "statement", "text");
     }
+    // the pack's own explanation (WHY) and confidence wording (CONF) are citable verbatim
+    if (pack.hasNonNull("explanation")) {
+      add("WHY", pack.get("explanation"), "headline", "confidenceLine");
+    }
+    if (pack.hasNonNull("confidence")) {
+      add("CONF", pack.get("confidence"), "statement");
+      add("CONF", pack.get("confidence").get("route"), "text");
+      pack.get("confidence").get("evidence").get("missing").forEach(x -> textById
+          .computeIfAbsent("CONF", k -> new ArrayList<>()).add(x.asString()));
+    }
+    // impact items (IM*), conflicting signals (CF*) and reasoning steps (RS*) are citable like evidence
+    if (pack.hasNonNull("impact")) {
+      for (JsonNode i : pack.get("impact").get("items")) {
+        add(i.get("id").asString(), i, "label", "why");
+      }
+    }
+    if (pack.hasNonNull("confidence")) {
+      for (JsonNode c : pack.get("confidence").get("evidence").get("contradicting")) {
+        add(c.get("id").asString(), c, "text");
+      }
+    }
+    if (pack.hasNonNull("reasoning")) {
+      for (JsonNode r : pack.get("reasoning").get("steps")) {
+        add(r.get("id").asString(), r, "title", "summary");
+      }
+    }
     ids.addAll(textById.keySet());
 
     pack.get("numbers").properties().forEach(en -> numbers.put(en.getKey(), en.getValue().get("fmt").get(0).asString()));

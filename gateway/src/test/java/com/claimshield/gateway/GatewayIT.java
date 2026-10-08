@@ -35,7 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Base for integration tests: boots the real app (security, JDBC, schema init, seeding) against a FRESH COPY of
  * serving_fixture.db, which is real engine output (regenerate with `npm run fixture`).
  */
-@SpringBootTest(properties = "claimshield.demo-mode=true")
+@SpringBootTest(properties = {"claimshield.demo-mode=true", "spring.main.allow-bean-definition-overriding=true"})
 @AutoConfigureMockMvc
 // each test class gets its own context, hence its own fresh copy of the fixture database
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)

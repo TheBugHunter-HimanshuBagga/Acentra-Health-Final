@@ -14,7 +14,8 @@
     "signOut": "Sign out",
     "language": "Language",
     "theme": "Theme",
-    "askAssistant": "Ask the assistant"
+    "askAssistant": "Ask the assistant",
+    "agent": "Specialist desk"
   },
   "onboarding": {
     "title": "Welcome to ClaimShield Nexus",
@@ -123,5 +124,109 @@
     "chain": "Hash chain",
     "verified": "Verified",
     "prev": "links to"
+  },
+  "triad": {
+    "eyebrow": "Risk, evidence and confidence",
+    "title": "How sure are we, and why",
+    "rule": "Confidence comes from evidence, never from the risk score.",
+    "risk": "Risk",
+    "severity": "Severity",
+    "outlook": "90-day outlook, a ranking score",
+    "noOutlook": "No outlook for this case",
+    "evidence": "Evidence",
+    "strength": "Evidence strength",
+    "items": "evidence items",
+    "channels": "Independent channels",
+    "supporting": "Supporting",
+    "contradicting": "Conflicting",
+    "confidence": "Confidence",
+    "route": "Route",
+    "conflicts": "What argues the other way",
+    "missingNeeded": "Missing evidence required",
+    "missing": "What would raise confidence"
+  },
+  "impact": {
+    "eyebrow": "Who and what is affected",
+    "title": "Case impact",
+    "why": "Why do we believe this?",
+    "severity": "Severity",
+    "basis": "Exposure basis"
+  },
+  "chain": {
+    "eyebrow": "How the system got here",
+    "title": "Reasoning chain"
+  },
+  "memory": {
+    "na": "Institutional memory is not available for this case.",
+    "knowledge": "Knowledge confidence",
+    "explain": "Explain the precedents",
+    "closed": "closed",
+    "reviewer": "added by a reviewer",
+    "seed": "seed",
+    "why": "Why am I seeing this precedent?",
+    "approved": "Approved knowledge about this pattern",
+    "from": "from"
+  },
+  "ai": {
+    "validated": "Validated",
+    "title": "Grounded explanation",
+    "fallback": "Deterministic fallback",
+    "regenerate": "Regenerate",
+    "generate": "Generate grounded explanation",
+    "note": "Written only from this case’s validated evidence pack. Every sentence cites evidence ids and is checked before you see it. It explains; it never decides.",
+    "why": "Shown instead of the model’s text"
+  },
+  "feedback": {
+    "thanks": "Thank you.",
+    "title": "Was the AI help useful?",
+    "useful": "Useful",
+    "notUseful": "Not useful / Needs improvement",
+    "about": "About",
+    "decision": "You…",
+    "none": "have no decision yet",
+    "accepted": "accepted the recommendation",
+    "modified": "modified it",
+    "rejected": "rejected it",
+    "what": "What was wrong?",
+    "comment": "Comment (required if you modified or rejected)",
+    "send": "Send feedback",
+    "note": "Stored for supervisor review. It does not change any rule, score or model by itself."
+  },
+  "knowledge": {
+    "title": "Lessons from this closed case",
+    "extract": "Draft lessons for review",
+    "deterministic": "from recorded decisions",
+    "notes": "Review notes",
+    "approve": "Approve",
+    "reject": "Reject",
+    "secondPerson": "A second person must review this draft.",
+    "note": "Approved lessons are shown next to similar future cases. They inform explanations; only the precedent and exception governance can change a score or a rule."
+  },
+  "kb": {
+    "eyebrow": "Governed learning",
+    "title": "Lessons waiting for review",
+    "note": "Case, feedback, pattern extraction, review, approved knowledge. One person’s feedback never changes a rule or a score.",
+    "none": "No lesson is waiting.",
+    "reviewers": "Supervisors and governance review these.",
+    "approved": "Approved knowledge",
+    "feedback": "Investigator feedback"
+  },
+  "why": {
+    "trigger": "Trigger",
+    "strongest": "Strongest evidence",
+    "supporting": "Supporting evidence",
+    "risk": "Risk contribution",
+    "unusual": "Why it is unusual",
+    "peers": "Peer comparison",
+    "history": "Historical behaviour",
+    "network": "Network context",
+    "contradictory": "Contradictory evidence",
+    "noContra": "None was found in the evidence pack.",
+    "seen": "What was seen",
+    "notBecause": "Why it stayed below a case",
+    "exception": "Governed exception",
+    "missing": "Missing evidence",
+    "change": "What would change this",
+    "action": "Recommended human action"
   }
 }

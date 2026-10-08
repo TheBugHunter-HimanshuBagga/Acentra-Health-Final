@@ -2,7 +2,7 @@ import { useGSAP } from '@gsap/react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import gsap from 'gsap'
 import { ChevronRight, Search } from 'lucide-react'
-import { Fragment, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { money, TierBadge } from '@/components/TierBadge'
@@ -10,11 +10,42 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
+import { useMe } from '@/lib/auth'
 import { AnimatedBar } from '@/lib/motion'
 import type { QueueItem, QueueResponse } from '@/lib/types'
 
 interface MonitorResponse {
   items: { monitorId: string; providerId: string; reasons: { caseId?: string; tierReasons?: string[] }; whatWouldRaiseConfidence: string[] }[]
+}
+
+interface Filters {
+  confidence: string
+  minEvidence: string
+  minMembers: string
+  scheme: string
+  provider: string
+  network: boolean
+  status: string
+}
+interface SavedView {
+  name: string
+  tier: string
+  search: string
+  filters: Filters
+}
+const EMPTY: Filters = { confidence: '', minEvidence: '', minMembers: '', scheme: '', provider: '', network: false, status: '' }
+
+/** Only filters that are set go on the URL, so the default queue request stays exactly the same. */
+function filterQuery(f: Filters): string {
+  const p: string[] = []
+  if (f.confidence) p.push(`confidence=${f.confidence}`)
+  if (f.minEvidence) p.push(`minEvidence=${f.minEvidence}`)
+  if (f.minMembers) p.push(`minMembers=${encodeURIComponent(f.minMembers)}`)
+  if (f.scheme) p.push(`scheme=${f.scheme}`)
+  if (f.provider) p.push(`provider=${encodeURIComponent(f.provider)}`)
+  if (f.network) p.push('network=true')
+  if (f.status) p.push(`status=${f.status}`)
+  return p.length ? `&${p.join('&')}` : ''
 }
 
 const inJsdom = typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom')
@@ -77,10 +108,31 @@ export function QueuePage() {
   const [tier, setTier] = useState('')
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const me = useMe().data
+  const [f, setF] = useState<Filters>(EMPTY)
+  const [views, setViews] = useState<SavedView[]>([])
+  const [viewName, setViewName] = useState('')
+  const storeKey = `claimshield-queue-views:${me?.username ?? 'anon'}`
+  useEffect(() => {
+    try {
+      setViews(JSON.parse(localStorage.getItem(storeKey) ?? '[]') as SavedView[])
+    } catch {
+      setViews([])
+    }
+  }, [storeKey])
+  const persist = (v: SavedView[]) => {
+    setViews(v)
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(v))
+    } catch {
+      /* private mode: views just are not remembered */
+    }
+  }
+  const extra = filterQuery(f)
   const body = useRef<HTMLTableSectionElement>(null)
   const q = useQuery<QueueResponse>({
-    queryKey: ['queue', horizon, capacity, tier],
-    queryFn: () => api<QueueResponse>(`/api/queue?horizon=${horizon}&capacityHours=${capacity}${tier ? `&tier=${tier}` : ''}`),
+    queryKey: ['queue', horizon, capacity, tier, extra],
+    queryFn: () => api<QueueResponse>(`/api/queue?horizon=${horizon}&capacityHours=${capacity}${tier ? `&tier=${tier}` : ''}${extra}`),
     placeholderData: keepPreviousData,
   })
   const monitor = useQuery<MonitorResponse>({ queryKey: ['monitor'], queryFn: () => api('/api/monitor'), retry: false })
@@ -97,7 +149,7 @@ export function QueuePage() {
       if (inJsdom || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !body.current) return
       gsap.from(body.current.querySelectorAll('[data-row]'), { opacity: 0, y: 10, duration: 0.4, stagger: 0.025, ease: 'power2.out', clearProps: 'all' })
     },
-    { dependencies: [horizon, tier, search, q.data?.runId, shown.length], scope: body },
+    { dependencies: [horizon, tier, search, extra, q.data?.runId, shown.length], scope: body },
   )
 
   const used = q.data?.usedHours ?? 0
@@ -146,6 +198,41 @@ export function QueuePage() {
             </div>
           )}
         </div>
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3 text-sm" aria-label="More filters">
+          <label className="space-y-1"><span className="eyebrow block">Evidence at least</span>
+            <select aria-label="Evidence strength filter" className="h-9 rounded-md border bg-transparent px-2" value={f.minEvidence} onChange={(e) => setF({ ...f, minEvidence: e.target.value })}>
+              <option value="">Any</option><option value="0.4">0.40</option><option value="0.6">0.60</option><option value="0.8">0.80</option>
+            </select></label>
+          <label className="space-y-1"><span className="eyebrow block">Members at least</span>
+            <Input aria-label="Members filter" type="number" min={0} className="h-9 w-24" value={f.minMembers} onChange={(e) => setF({ ...f, minMembers: e.target.value })} /></label>
+          <label className="space-y-1"><span className="eyebrow block">Pattern</span>
+            <select aria-label="Pattern filter" className="h-9 rounded-md border bg-transparent px-2" value={f.scheme} onChange={(e) => setF({ ...f, scheme: e.target.value })}>
+              <option value="">Any</option>
+              {Array.from(new Set((q.data?.items ?? []).flatMap((i) => i.hypotheses))).sort().map((h) => <option key={h} value={h}>{h}</option>)}
+            </select></label>
+          <label className="space-y-1"><span className="eyebrow block">Provider</span>
+            <Input aria-label="Provider filter" className="h-9 w-28" placeholder="P-0044" value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })} /></label>
+          <label className="space-y-1"><span className="eyebrow block">Status</span>
+            <select aria-label="Status filter" className="h-9 rounded-md border bg-transparent px-2" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
+              <option value="">Any</option>{['NEW', 'IN_REVIEW', 'ACTION_PROPOSED', 'ACTION_APPROVED', 'ACTION_TAKEN', 'CLOSED'].map((x) => <option key={x} value={x}>{x.replace(/_/g, ' ').toLowerCase()}</option>)}
+            </select></label>
+          <label className="flex items-center gap-2 pb-2"><input type="checkbox" checked={f.network} onChange={(e) => setF({ ...f, network: e.target.checked })} /> Network cases only</label>
+          <div className="ml-auto flex flex-wrap items-end gap-2">
+            {views.length > 0 && (
+              <label className="space-y-1"><span className="eyebrow block">Saved views</span>
+                <select aria-label="Saved views" className="h-9 rounded-md border bg-transparent px-2" value="" onChange={(e) => {
+                  const v = views.find((x) => x.name === e.target.value)
+                  if (v) { setTier(v.tier); setSearch(v.search); setF(v.filters) }
+                }}>
+                  <option value="">Apply…</option>{views.map((v) => <option key={v.name}>{v.name}</option>)}
+                </select></label>
+            )}
+            <Input aria-label="View name" className="h-9 w-32" placeholder="Name this view" value={viewName} onChange={(e) => setViewName(e.target.value)} />
+            <button type="button" disabled={!viewName.trim()} className="h-9 rounded-full border px-3 text-xs hover:border-primary disabled:opacity-40"
+              onClick={() => { persist([...views.filter((v) => v.name !== viewName.trim()), { name: viewName.trim(), tier, search, filters: f }]); setViewName('') }}>Save view</button>
+            <button type="button" className="h-9 rounded-full border px-3 text-xs hover:border-primary" onClick={() => { setF(EMPTY); setTier(''); setSearch('') }}>Clear</button>
+          </div>
+        </div>
       </header>
 
       {q.isError && <p role="alert">The queue could not be loaded.</p>}
@@ -158,11 +245,13 @@ export function QueuePage() {
             <TableRow className="hover:bg-transparent">
               <TableHead className="eyebrow w-8" />
               <TableHead className="eyebrow">#</TableHead>
-              <TableHead className="eyebrow">Tier</TableHead>
+              <TableHead className="eyebrow">Confidence</TableHead>
               <TableHead className="eyebrow">Case</TableHead>
               <TableHead className="eyebrow">Subjects</TableHead>
               <TableHead className="eyebrow">Pattern</TableHead>
               <TableHead className="eyebrow text-right">Potential $</TableHead>
+              <TableHead className="eyebrow text-right">Members</TableHead>
+              <TableHead className="eyebrow text-right">Evidence</TableHead>
               <TableHead className="eyebrow">Signals</TableHead>
               <TableHead className="eyebrow text-right">Hours</TableHead>
               <TableHead className="eyebrow">Status</TableHead>
@@ -174,8 +263,8 @@ export function QueuePage() {
               const isOpen = open === i.caseId
               return (
                 <Fragment key={i.caseId}>
-                  <TableRow data-row className="row-hover cursor-pointer" onClick={() => setOpen(isOpen ? null : i.caseId)} style={{ boxShadow: `inset 3px 0 0 ${i.tier === 'HIGH' ? 'var(--tier-high)' : 'var(--tier-medium)'}` }}>
-                    <TableCell>
+                  <TableRow data-row className="row-hover cursor-pointer" onClick={() => setOpen(isOpen ? null : i.caseId)}>
+                    <TableCell style={{ boxShadow: `inset 3px 0 0 ${i.tier === 'HIGH' ? 'var(--tier-high)' : 'var(--tier-medium)'}` }}>
                       <button type="button" aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${i.caseId}`} aria-expanded={isOpen} onClick={(e) => { e.stopPropagation(); setOpen(isOpen ? null : i.caseId) }} className="grid h-6 w-6 place-items-center rounded hover:bg-muted">
                         <ChevronRight aria-hidden className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                       </button>
@@ -195,6 +284,8 @@ export function QueuePage() {
                       {money(i.dollars.exact + i.dollars.estimated)}
                       {i.dollars.estimated > 0 && <span className="block text-xs text-muted-foreground">of which estimated {money(i.dollars.estimated)}</span>}
                     </TableCell>
+                    <TableCell className="num text-right">{i.impact?.members ?? '—'}</TableCell>
+                    <TableCell className="num text-right" title={i.confidence ? `${i.confidence.channelsAgreeing} channels agree, ${i.confidence.contradictions} conflicting` : undefined}>{i.confidence ? i.confidence.evidenceStrength.toFixed(2) : '—'}</TableCell>
                     <TableCell><Meters f={i.factors} /></TableCell>
                     <TableCell className="num text-right">{i.estHours.toFixed(1)}</TableCell>
                     <TableCell className="mono text-xs">{i.status}</TableCell>
@@ -202,7 +293,7 @@ export function QueuePage() {
                   </TableRow>
                   {isOpen && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={11} className="bg-muted/40 px-6">
+                      <TableCell colSpan={13} className="bg-muted/40 px-6">
                         <Why i={i} />
                       </TableCell>
                     </TableRow>

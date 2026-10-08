@@ -34,6 +34,9 @@ export interface QueueItem {
   inCapacity: boolean
   deferReason: string | null
   assignedTo: string | null
+  confidence?: import('@/lib/types2').CaseSummaryBlocks['confidence']
+  impact?: import('@/lib/types2').CaseSummaryBlocks['impact']
+  ruleIds?: string[]
 }
 
 export interface QueueResponse {
@@ -70,6 +73,8 @@ export interface CaseDetail {
   outcome: string | null
   outlook: import('@/lib/types2').Outlook
   channels?: Record<string, number>
+  confidence?: import('@/lib/types2').CaseSummaryBlocks['confidence']
+  impact?: import('@/lib/types2').CaseSummaryBlocks['impact']
   alertCount?: number
   firstServiceDt?: string
   lastServiceDt?: string
@@ -87,6 +92,7 @@ export interface EvidenceItem {
   hardFact: boolean
   dollarsBasis?: 'EXACT' | 'ESTIMATED'
   policyRefs: string[]
+  observation?: import('@/lib/types2').Observation
 }
 
 export interface EvidencePack {
@@ -97,6 +103,10 @@ export interface EvidencePack {
   hypotheses: string[]
   defaultAction: ActionName
   permittedActions: PermittedAction[]
+  impact?: import('@/lib/types2').ImpactBlock
+  confidence?: import('@/lib/types2').ConfidenceBlock
+  reasoning?: { steps: import('@/lib/types2').ReasoningStep[]; note: string }
+  explanation?: import('@/lib/types2').Explanation | null
 }
 
 export interface ClaimLine {

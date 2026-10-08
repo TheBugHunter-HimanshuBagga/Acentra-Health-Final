@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from '@/components/Shell'
+import { AgentPage } from '@/pages/Agent'
 import { AuditPage } from '@/pages/Audit'
 import { CasePage } from '@/pages/Case'
 import { DashboardPage } from '@/pages/Dashboard'
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="governance" element={<GovernancePage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="library" element={<LibraryPage />} />
+        <Route path="agent" element={<AgentPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

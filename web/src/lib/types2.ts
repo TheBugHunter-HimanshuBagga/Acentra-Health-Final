@@ -74,6 +74,15 @@ export interface Dashboard {
   needsYouNow: { caseId: string; dollars: number; hypotheses: string[]; primary: string; tier: Tier }[]
   exposureByScheme: { scheme: string; label: string; cases: number; dollars: number }[]
   compounding: CompoundingNow
+  distributions?: {
+    confidence: Record<'HIGH' | 'MEDIUM' | 'LOW', number>
+    evidenceStrength: { bucket: string; cases: number }[]
+    channelsAgreeing: { channels: number; cases: number }[]
+    risk: { bucket: string; cases: number }[]
+  }
+  networks?: { caseId: string; providers: number; rules: string[]; dollars: number }[]
+  trends?: Record<string, number>
+  outlook?: { available: boolean; label: string; mean: Record<string, number | null>; top: { caseId: string; p90: number }[] }
 }
 
 export interface RunSummary {
@@ -210,6 +219,7 @@ export interface ChatReply {
   mode: 'FACTS_ONLY' | 'LLM' | 'REFUSAL'
   label: string
   insufficientKnowledge: boolean
+  handoffOffered?: boolean
   blocks: ChatBlock[]
   links: { type: string; id: string; label?: string }[]
   notices: string[]
@@ -224,4 +234,217 @@ export interface Health {
   engine: 'UP' | 'DOWN'
   llm: 'LIVE' | 'TEMPLATE' | 'DEGRADED'
   voice: 'ON' | 'OFF' | 'DEGRADED'
+}
+
+// ------------------------------------------------------------------------------ insight: impact, confidence, reasoning
+export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW'
+
+export interface Observation {
+  channel: string
+  threshold: string
+  strength: number
+  observed: Record<string, unknown> | null
+  peerBaseline: Record<string, unknown> | null
+  history: Record<string, unknown> | null
+  network: Record<string, unknown> | null
+  sourceFields: string[]
+}
+
+export interface ImpactItem {
+  id: string
+  key: string
+  label: string
+  value: number
+  display: string
+  basis: 'EXACT' | 'ESTIMATED' | 'DERIVED'
+  why: string
+  evidenceIds: string[]
+  sourceFields: string[]
+}
+
+export interface ImpactBlock {
+  items: ImpactItem[]
+  severity: { value: number; pattern: string | null; why: string }
+  exposureBasis: 'EXACT' | 'ESTIMATED' | 'MIXED'
+  memberImpactScore: number
+}
+
+export interface ConfidenceBlock {
+  level: ConfidenceLevel
+  statement: string
+  insufficientEvidence: boolean
+  insufficientText: string | null
+  route: { code: string; text: string; requiresHuman: boolean; automationEligible: boolean }
+  risk: {
+    score: number
+    severity: number
+    note: string
+    drivers: { channel: string; contribution: number; strength: number; text: string }[]
+    outlook: { available: boolean; p90: number | null; label: string }
+  }
+  evidence: {
+    strength: number
+    count: number
+    channelsAgreeing: string[]
+    supporting: { id: string; channel: string; strength: number; text: string }[]
+    contradicting: { id: string; text: string; source: string; refs: string[] }[]
+    missing: string[]
+    evidenceIds: string[]
+  }
+  precedent: { fit: number; matches: number; strong: number; partial: number; conflicting: number; supporting: number; ids: string[]; live: number }
+}
+
+export interface ReasoningStep {
+  id: string
+  step: 'RETRIEVE' | 'INTERPRET' | 'APPLY_RULES' | 'PROPOSE' | 'SCORE' | 'CITE' | 'HUMAN_REVIEW'
+  title: string
+  summary: string
+  details: string[]
+  refs: string[]
+}
+
+export interface Explanation {
+  flagged: boolean
+  headline: string
+  confidenceLine: string
+  trigger?: { id: string; statement: string } | null
+  strongestEvidence?: { id: string; statement: string; hardFact: boolean } | null
+  supportingEvidence?: { id: string; statement: string }[]
+  riskContribution?: { channel: string; share: number; strength: number }[]
+  whyUnusual?: string[]
+  peerComparison?: { id: string; observed: Record<string, unknown>; peer: Record<string, unknown>; threshold: string }[]
+  historicalBehaviour?: { id: string; history: Record<string, unknown>; observed: Record<string, unknown> }[]
+  networkContext?: { id: string; statement: string }[]
+  contradictory?: { id: string; text: string; source: string }[]
+  missingEvidence: string[]
+  recommendedHumanAction: { action: string; text: string }
+  impactLine?: string
+  whatWasSeen?: string[]
+  whatWouldChangeThis?: string[]
+  reasons?: string[]
+  viaException?: string | null
+}
+
+export interface AiSentence {
+  text: string
+  citations: string[]
+}
+
+export interface ReasoningOutput {
+  available?: boolean
+  mode: 'LLM' | 'TEMPLATE'
+  badge: 'VALIDATED' | 'TEMPLATE_FALLBACK'
+  model: string | null
+  createdAt: string
+  validation: { passed: boolean; retries: number; fallbackReason: string | null }
+  content: {
+    source: string
+    confidenceStatement?: string
+    sections?: Record<string, AiSentence[]>
+    precedents?: {
+      id: string
+      precedentId: string
+      strength: 'STRONG' | 'PARTIAL' | 'CONFLICTING'
+      similarity: number
+      disposition: string
+      reasonCode: string | null
+      mostSimilarOn: string[]
+      whyRelevant: string
+      relevanceNarrative?: string
+      differencesNarrative?: string
+    }[]
+    summary?: string
+    overallNarrative?: string
+    influencedBy?: number
+  }
+}
+
+export interface MemoryPrecedent {
+  precedentId: string
+  similarity: number
+  disposition: string
+  reasonCode: string | null
+  strength: 'STRONG' | 'PARTIAL' | 'CONFLICTING'
+  source: string
+  cosignedBy: string | null
+  rationale: string | null
+  mostSimilarOn: string[]
+  whyShown: string
+}
+
+export interface KnowledgeItem {
+  itemId: string
+  caseId: string
+  kind: string
+  title: string
+  text: string
+  source: 'AI' | 'DETERMINISTIC'
+  model: string | null
+  schemeType: string | null
+  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'RETIRED'
+  createdBy: string
+  reviewedBy: string | null
+  reviewNotes: string | null
+  whyShown?: string
+}
+
+export interface Memory {
+  caseId: string
+  precedents: MemoryPrecedent[]
+  approvedKnowledge: KnowledgeItem[]
+  influencedBy: number
+  influencedByReviewerPrecedents: number
+  summary: string
+  knowledgeConfidence: 'NONE' | 'PARTIAL' | 'STRONG'
+}
+
+export interface HandoffMessage {
+  seq: number
+  role: 'USER' | 'AGENT' | 'SYSTEM'
+  sender: string
+  text: string
+  at: string
+}
+
+export interface Handoff {
+  handoffId: string
+  status: 'WAITING' | 'ACTIVE' | 'CLOSED'
+  requestedBy: string
+  agent: string | null
+  reason: string
+  caseId: string | null
+  createdAt: string
+}
+
+export interface CaseSummaryBlocks {
+  confidence?: {
+    level: ConfidenceLevel
+    route: string
+    automationEligible: boolean
+    evidenceStrength: number
+    evidenceCount: number
+    channelsAgreeing: number
+    contradictions: number
+    missing: number
+  }
+  impact?: {
+    members: number
+    claims: number
+    lines: number
+    exposureExact: number
+    exposureEstimated: number
+    providers: number
+    regions: number
+    services: number
+    severity: number
+  }
+}
+
+export interface Growth {
+  approvedKnowledge: number
+  pendingKnowledge: number
+  feedback: number
+  livePrecedents: number
+  byDay: { day: string; n: number }[]
+  recentDecisions: { case_id: string; action: string; actor: string; status: string; created_at: string }[]
 }

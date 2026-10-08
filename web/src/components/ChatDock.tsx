@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/auth'
-import type { ChatReply, Health } from '@/lib/types2'
+import type { ChatReply, Handoff, HandoffMessage, Health } from '@/lib/types2'
 
 const MAX_SECONDS = 28
 
@@ -49,18 +49,74 @@ export function ChatDock() {
   const timer = useRef<number | null>(null)
   const end = useRef<HTMLDivElement>(null)
   const idSeq = useRef(0)
+  const [handoff, setHandoff] = useState<Pick<Handoff, 'handoffId' | 'status' | 'agent'> | null>(null)
+  const [hmsgs, setHmsgs] = useState<HandoffMessage[]>([])
 
   const health = useQuery<Health>({ queryKey: ['health'], queryFn: () => api('/api/health'), enabled: open && !!me, staleTime: 30_000 })
   const voiceOn = health.data?.voice === 'ON'
   const lang = me?.language ?? 'en'
   const caseId = /^\/cases\/([A-Za-z0-9-]+)/.exec(loc.pathname)?.[1]
 
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, open])
+  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, hmsgs, open])
+
+  // an open human handoff survives closing the panel or reloading the page
+  useEffect(() => {
+    if (!open || !me) return
+    void api<{ active: boolean; handoff?: Handoff; messages?: HandoffMessage[] }>('/api/handoff/mine')
+      .then((r) => {
+        if (r.active && r.handoff) {
+          setHandoff({ handoffId: r.handoff.handoffId, status: r.handoff.status, agent: r.handoff.agent })
+          setHmsgs(r.messages ?? [])
+        }
+      })
+      .catch(() => undefined)
+  }, [open, me])
+
+  // live updates from the specialist (server-sent events; the browser reconnects by itself)
+  const hid = handoff?.handoffId
+  useEffect(() => {
+    if (!hid || typeof EventSource === 'undefined') return
+    const es = new EventSource(`/api/handoff/${hid}/stream`)
+    es.addEventListener('message', (ev) => {
+      const m = JSON.parse((ev as MessageEvent).data) as HandoffMessage
+      setHmsgs((all) => (all.some((x) => x.seq === m.seq) ? all : [...all, m]))
+    })
+    es.addEventListener('status', (ev) => {
+      const st = JSON.parse((ev as MessageEvent).data) as { status: Handoff['status']; agent: string | null }
+      setHandoff((h) => (h ? { ...h, status: st.status, agent: st.agent } : h))
+      if (st.status === 'CLOSED') es.close()
+    })
+    return () => es.close()
+  }, [hid])
+
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current) }, [])
+  useEffect(() => {
+    const o = () => setOpen(true)
+    window.addEventListener('claimshield:open-chat', o)
+    return () => window.removeEventListener('claimshield:open-chat', o)
+  }, [])
 
   function add(t: Omit<Turn, 'id'>) {
     idSeq.current += 1
     setTurns((all) => [...all, { ...t, id: idSeq.current }])
+  }
+
+  async function connect() {
+    setBusy(true)
+    try {
+      const r = await api<{ active: boolean; handoff?: Handoff; messages?: HandoffMessage[] }>('/api/handoff', {
+        method: 'POST',
+        body: { sessionId, reason: turns.filter((x) => x.role === 'you').at(-1)?.text ?? 'Requested from the assistant', caseId },
+      })
+      if (r.handoff) {
+        setHandoff({ handoffId: r.handoff.handoffId, status: r.handoff.status, agent: r.handoff.agent })
+        setHmsgs(r.messages ?? [])
+      }
+    } catch (e) {
+      add({ role: 'assistant', error: e instanceof ApiError ? e.detail : t('common.error') })
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function send(message: string) {
@@ -68,6 +124,20 @@ export function ChatDock() {
     if (!q || busy) return
     setText('')
     setConfirm(null)
+    if (handoff && handoff.status !== 'CLOSED') {
+      setBusy(true)
+      try {
+        await api(`/api/handoff/${handoff.handoffId}/messages`, { method: 'POST', body: { text: q } })
+        const r = await api<{ messages: HandoffMessage[] }>(`/api/handoff/${handoff.handoffId}?after=0`)
+        setHmsgs(r.messages)
+      } catch (e) {
+        add({ role: 'assistant', error: e instanceof ApiError ? e.detail : t('common.error') })
+        setText(q)
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
     add({ role: 'you', text: q })
     setBusy(true)
     try {
@@ -142,7 +212,7 @@ export function ChatDock() {
         type="button"
         aria-label={t('nav.askAssistant')}
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:scale-105"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-6px_var(--glow)] ring-1 ring-white/20 hover:-translate-y-0.5"
       >
         {open ? <X aria-hidden className="h-5 w-5" /> : <MessageCircle aria-hidden className="h-5 w-5" />}
       </button>
@@ -150,22 +220,44 @@ export function ChatDock() {
         <section
           role="dialog"
           aria-label={t('chat.title')}
-          className="surface fixed bottom-20 right-5 z-40 flex h-[min(34rem,calc(100vh-7rem))] w-[min(26rem,calc(100vw-2.5rem))] flex-col shadow-2xl"
+          className="glass fixed bottom-20 right-5 z-40 flex h-[min(36rem,calc(100vh-7rem))] w-[min(27rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl shadow-2xl"
         >
-          <header className="flex items-center justify-between border-b px-4 py-2">
-            <h2 className="text-sm font-semibold">{t('chat.title')}</h2>
-            <span className="text-xs text-muted-foreground">
-              {health.data ? `AI: ${health.data.llm.toLowerCase()} · voice: ${health.data.voice.toLowerCase()}` : ''}
-            </span>
+          <header className="space-y-1.5 border-b px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">{t('chat.title')}</h2>
+              <span className="mono text-[0.65rem] text-muted-foreground">
+                {health.data ? `ai ${health.data.llm.toLowerCase()} · voice ${health.data.voice.toLowerCase()}` : ''}
+              </span>
+            </div>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="live-dot" aria-hidden /> {t('chat.grounded')}
+            </p>
+            <p className="eyebrow">{t('chat.context')}: <span className="text-foreground">{caseId ?? t('chat.noContext')}</span></p>
           </header>
           <div className="flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
             {turns.length === 0 && <p className="text-sm text-muted-foreground">{t('chat.disclaimer')}</p>}
             {turns.map((m) =>
               m.role === 'you' ? (
-                <p key={m.id} className="ml-8 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">{m.text}</p>
+                <p key={m.id} className="ml-10 rounded-xl rounded-br-sm border bg-muted px-3 py-2 text-sm">{m.text}</p>
               ) : (
-                <AssistantTurn key={m.id} turn={m} onNavigate={() => setOpen(false)} />
+                <AssistantTurn key={m.id} turn={m} onNavigate={() => setOpen(false)} onConnect={() => void connect()} canConnect={!handoff} />
               ),
+            )}
+            {handoff && (
+              <div className="space-y-2" aria-label="Human specialist conversation">
+                <p className="eyebrow flex items-center gap-2 border-t pt-3">
+                  <span className="live-dot" aria-hidden />
+                  {handoff.status === 'WAITING' ? 'Waiting for a human specialist' : handoff.status === 'ACTIVE' ? `Connected to ${handoff.agent ?? 'a specialist'}` : 'Conversation closed'}
+                </p>
+                {hmsgs.map((m) => (
+                  <p key={m.seq} className={m.role === 'USER' ? 'ml-10 rounded-xl rounded-br-sm border bg-muted px-3 py-2 text-sm' : m.role === 'AGENT' ? 'mr-6 border-l-2 border-[var(--ok)] py-1 pl-3 text-sm' : 'text-center text-xs text-muted-foreground'}>
+                    {m.role === 'AGENT' && <span className="eyebrow mr-2">{m.sender}</span>}{m.text}
+                  </p>
+                ))}
+                {handoff.status !== 'CLOSED' && (
+                  <button type="button" className="text-xs underline" onClick={() => void api(`/api/handoff/${handoff.handoffId}/close`, { method: 'POST' }).then(() => setHandoff((h) => (h ? { ...h, status: 'CLOSED' } : h)))}>End the conversation with the specialist</button>
+                )}
+              </div>
             )}
             {busy && <p className="text-sm text-muted-foreground">{t('common.loading')}…</p>}
             <div ref={end} />
@@ -222,12 +314,12 @@ export function ChatDock() {
   )
 }
 
-function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: () => void }) {
+function AssistantTurn({ turn, onNavigate, onConnect, canConnect }: { turn: Turn; onNavigate: () => void; onConnect: () => void; canConnect: boolean }) {
   if (turn.error) return <p role="alert" className="mr-8 rounded-lg border border-destructive/40 px-3 py-2 text-sm">{turn.error}</p>
   const r = turn.reply!
   return (
-    <div className="mr-8 space-y-2 rounded-lg border bg-card px-3 py-2 text-sm">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{r.label}</p>
+    <div className={`mr-6 space-y-2 border-l-2 py-1 pl-3 text-sm ${r.mode === 'REFUSAL' ? 'border-[var(--warn)]' : 'border-[var(--signal)]'}`}>
+      <p className={`chip ${r.mode === 'REFUSAL' ? 'chip-corr' : 'chip-fact'}`}>{r.label}</p>
       {r.blocks.map((b, i) => (
         <div key={i} className="space-y-1">
           <p>{b.text}</p>
@@ -238,13 +330,16 @@ function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: () => voi
             </details>
           )}
           {b.sourceIds.length > 0 && (
-            <p className="mono text-[11px] text-muted-foreground">Sources: {b.sourceIds.join(', ')}</p>
+            <p className="mono flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">Sources: {b.sourceIds.map((id) => <span key={id} className="rounded border px-1.5 py-0.5">{id}</span>)}</p>
           )}
         </div>
       ))}
       {r.notices.map((n) => (
         <p key={n} className="text-xs text-muted-foreground">{NOTICES[n] ?? n}</p>
       ))}
+      {r.handoffOffered && canConnect && (
+        <button type="button" onClick={onConnect} className="rounded-full border px-3 py-1.5 text-xs hover:border-primary">Connect me to a human specialist</button>
+      )}
       {r.links.map((l) => (
         <Link key={l.id} className="block text-xs underline" to={`/cases/${l.id}`} onClick={onNavigate}>
           Open {l.id}
