@@ -1,6 +1,73 @@
 # ClaimShield Nexus: Project Context
 
-*Hand-off summary of everything decided and built so far. Read this first. Last updated 2026-10-08 after **milestone M1 was implemented and verified** (see section 4A).*
+*Hand-off summary. Read section 0 first: it is the verified final state (2026-10-08). Sections 4-13 are build history; where they say "not built yet" the code supersedes them.*
+
+---
+
+## 0. FINAL STATE (verified 2026-10-08, evening): READY for the demo
+
+Everything below was run and passed in this session. Treat the code as the source of truth; older sections further down describe the build history and some "not built" wording in them is stale (see section 10).
+
+### Gates run (all PASS)
+| Command | Result |
+|---|---|
+| `npm run fixture` | PASS (RUN-001, 18 cases, 10 monitor, tiers HIGH 6 / MEDIUM 12 / MONITOR 10) |
+| engine pytest (`npm run test:engine`) | 216 passed |
+| gateway `mvn -q -o test` | 166 passed (ChatIT 18, LiveBriefIT 2, BriefFallbackIT 5, KnowledgeIT 13, AiUnitTest 13, SpaForwardIT 2 ...) |
+| web `vitest` | 48 passed |
+| `npm run lint` (oxlint + ruff) | PASS |
+| `npm run build` | PASS (vite warns the JS chunk is 1.4 MB; harmless) |
+| `npm run e2e:m1` | PASS |
+| `npm run e2e:ui` | PASS (real Edge: language onboarding, dashboard, queue, case with timeline/network/outlook/confidence assertions, brief, modify + supervisor approval + carry out + close, audit verify) |
+| `npm run e2e:brain` | PASS (real engine: close UNFOUNDED, co-sign, propose, simulate, submit, governance approve, re-run RUN-002, "compared with RUN-001", audit chain) |
+| `docker compose config -q`, `docker compose build`, `docker compose up -d` | PASS. Engine seeded `/data` on first start, healthcheck gates the gateway, `/api/health` UP, SPA root and deep link 200, login + queue + case via the container, manual re-run produced RUN-002 |
+
+### What exists (all implemented)
+Engine: all official FWA behaviours (duplicate, upcoding, unbundling/PTP, MUE/excessive utilization, phantom: death/inpatient/ghost, impossible timing, geographic), PEER/SELF/NETWORK channels, decoys D1-D4, graph, temporal (CUSUM/growth/ramp), 30/60/90 prediction, cases, scoring, evidence packs, precedents, exception DSL, simulation, re-run, funnel diff. Gateway: auth/roles, two-person rule, hash-chained audit, brief + validator V1-V15 with fallback ladder, knowledge/exception governance, chat + voice (Sarvam), Claude client (server only), SPA deep-link forwarding. Web: onboarding, dashboard, queue, case workspace, precedents, governance, audit, library, assistant with voice, 11 languages for interface chrome.
+
+### Evaluation facts (synthetic ground truth, seeded run)
+- All 19 injected schemes are flagged; every rule has recall 1.0 on its injected lines; decoys falsely flagged: 0 lines; D1 decoys reach MEDIUM at most (never HIGH); D2/D3/D4 stay LOW; the ownership ring is recovered as one case; temporal detector caught 5 of 20 scheme providers (median delay 1 month).
+- Prediction is weak and the UI says so: HGB beats persistence at 30/60 days (lift 1.05/1.09) but the bootstrap CIs include zero and at 90 days it does not beat persistence (0.99); probabilities are over-confident (bins predicted ~0.95 observed ~0.6). The outlook section tells users it is a ranking score, not a calibrated chance, never evidence.
+
+### Safety checks confirmed (code + tests)
+Never labels fraud (forbidden-term checks in the brief and chat validators, templates reviewed); peer-only / own-history-only signals are tier LOW (Monitor) (`test_m2`: `tier == "LOW"`); recorded-fact rules cannot be scoped into an exception (`test_brain`); BLOCK lint cannot be submitted or approved (`KnowledgeIT` LINT_BLOCKED); the simulation BLOCKs excepting a real injected scheme (seen live in e2e:brain); proposer cannot approve and closer cannot co-sign (`SELF_APPROVAL_FORBIDDEN`); validator rejects fabricated numbers, citations, entities (`BriefValidatorTest` 54 cases, `ChatIT`); AI failure falls back to the template / validated facts / English / typing; API keys exist only in the gateway process (`.env` is git-ignored, no key appears in tracked files); ground truth is opened only by generate/, eval/ and orchestrators (guard test in `test_pack_publish.py`).
+
+### Limitations (honest)
+- The CMS synthetic-data adapter (`engine/claimshield/adapters/` is an empty placeholder) and a multi-seed evaluation were NOT built; the deterministic generator is the only data source and results are for one seed (20261008). Do not claim real-world accuracy.
+- No Anthropic key in the repo: the live Claude path is exercised only through fakes (`LiveBriefIT`, `ChatIT`); the template path and validator are fully tested. Sarvam translation/STT/TTS were verified live with the provided key earlier in the session.
+- The SPA is served by the gateway only in Docker (jar embeds `web/dist`); in development Vite serves it.
+- First Docker start takes ~60-90 s while the engine generates data.
+- All files under `data/e2e*` were removed; the scratch API dumps and Playwright artefacts were deleted.
+
+### Start the demo
+```bash
+npm run pipeline        # once: generates data/claims.duckdb, gt.duckdb, app.db (RUN-001)
+npm run dev             # web http://localhost:5173, gateway :8080, engine :8000
+# or, containerised (open http://localhost:8080):
+docker compose up --build
+```
+Demo users (`gateway/src/main/resources/demo-users.csv`): investigator, supervisor, governance, auditor; `DEMO_MODE=true` shows the role switcher in the top bar. Reset: `npm run reset-demo` (dev) or `docker compose down -v` (Docker).
+
+### Judge flow (5-6 min)
+1. Sign in as investigator, pick a language (or skip). Dashboard: 347 alerts become 18 cases and 10 monitor items; exact vs estimated dollars; "needs you now".
+2. SIU queue: change the horizon 30/60/90 and the investigator hours; open the top HIGH case (CASE-0014) and read why it ranks (risk, dollars, member impact, severity, evidence strength, hours).
+3. Case workspace: evidence explorer (filter by channel, show claim lines), timeline chart, network graph, 30/60/90 outlook (note the honesty caveat), confidence view and limitations.
+4. Generate the investigation brief: badge Validated; every sentence cites evidence IDs; no typed numbers. Ask the assistant a question (optionally in Hindi / by voice).
+5. Decide: Modify to PREPAY_REVIEW_FLAG with a reason, "waits for a supervisor"; switch to SUPERVISOR, Approve; back to investigator, Carry out; close CONFIRMED with a rationale.
+6. Second Brain: open a decoy-look-alike MEDIUM case (CASE-0016: R-TIME-01 + S-UTL), Reject (LEGIT_CLINICAL_PATTERN), close UNFOUNDED; as SUPERVISOR co-sign on Precedents; Propose exception, Simulate, Submit; as GOVERNANCE approve and re-run; Rules page shows "compared with RUN-001" and the tier changes.
+7. Audit (auditor): filter by case, Verify chain.
+Story line: thousands of claims -> independent evidence channels -> few cases -> why it is ranked -> context (network, timeline) -> future risk -> Claude explains only validated evidence -> human decides -> the decision becomes governed knowledge -> next run learns -> everything auditable.
+
+### Security / credential notes
+- The Sarvam key was pasted in chat; it is only in the git-ignored `.env`. Rotate it. Never print or commit keys; `.env.example` has blanks.
+- Demo passwords are random, demo-only, in `demo-users.csv`; `DEMO_MODE` must be false outside demos.
+
+### Gotchas for the next maintainer
+- JDK HttpClient must use HTTP/1.1 toward uvicorn (done in `HttpEngineClient`); h2c upgrade breaks POST bodies.
+- `e2e:ui` must run only `m1.spec.ts` (done); `brain.spec.ts` needs the real engine and shares the onboarding state of a DB.
+- Tests with two `LlmClient`/`BriefCandidateSource` beans need `@Primary` on the fake. `ChatService.resetRateLimits()` exists for tests.
+- Write multi-line Python edit scripts with the file tool, not bash heredocs containing triple quotes.
+- `.dockerignore` excludes `data/`, `node_modules`, `.venv`, `gateway/target`.
 
 ---
 
@@ -164,11 +231,7 @@ Toolchain on this machine: Node 24.11.0, npm 11.6.1, Python 3.12.10, Java 25 LTS
 
 ## 9. What to do next
 
-1. Hour 0 (partly done): confirm the sandbox quirk does not affect teammates' machines; **start the CMS download in a browser** (parallel, non-blocking); read the Sarvam TTS reference; one real Claude structured-output call from Java.
-2. **IC0:** write `contracts/schemas/evidence_pack.schema.json` and the fixture cases; seed the four users.
-3. **Build M1** (execution plan §2): mini-generator → six rules → alerts → cases → evidence → review → decision → audit. Do not add anything optional before it works end to end.
-4. Then layer: all six behaviours → Claude brief → graph and prediction → precedent/exception/re-run → chat → voice → polish.
-5. Optional housekeeping: `git init` and a first commit (not done); run `docker compose build` once to verify the image tags.
+Superseded: everything in the original plan is built; see section 0 for the final state and the optional leftovers.
 
 ## 4B. MILESTONE: INVESTIGATION BRIEF + VALIDATOR (implemented)
 
@@ -179,45 +242,33 @@ Toolchain on this machine: Node 24.11.0, npm 11.6.1, Python 3.12.10, Java 25 LTS
 - **Web:** BriefPanel in the case page (generate button, badge, seven titled sections with citation chips, validation disclosure).
 - **Tests:** BriefValidatorTest (48), BriefIT (6), BriefFallbackIT (5), engine test_brief_contract (21), BriefPanel.test (6), brief steps in e2e:m1 and e2e:ui. Mutation check: disabling any of V3-V12 fails tests.
 
-## 4C. MILESTONE M2: REMAINING FWA BEHAVIOURS + PEER CHANNEL (IN PROGRESS, REPO CURRENTLY BROKEN)
+## 4C. MILESTONE M2: REMAINING FWA BEHAVIOURS + PEER CHANNEL (IMPLEMENTED)
 
-**User request (verbatim intent):** implement upcoding, impossible timing, excessive utilization, phantom services, decoys D1-D4; add the PEER evidence channel so corroborated cases can reach HIGH; use the existing architecture, evidence-pack contract, scoring, workflow and tests; do NOT redesign M1/brief/validator; write real code and tests; regenerate the gateway fixture with `npm run fixture`; run the full suite and the real E2E; NO graph, prediction, chat, voice, CMS or polish. Final report format: 1 files changed, 2 behaviours implemented, 3 test results, 4 bugs fixed, 5 exact next step.
+Request: upcoding, impossible timing, excessive utilization, phantom services, decoys D1-D4; a PEER evidence channel so corroborated cases reach HIGH; no graph, prediction, chat, voice, CMS or polish; M1, brief and validator not redesigned.
 
-### WARNING: current state does not run
-`engine/claimshield/detect/rules.py` now imports `claimshield.detect.peer.run_peer_signals`, but **`detect/peer.py` does not exist yet**. Until it is written, the engine pipeline, `npm run fixture`, `npm test` (engine tests and the fixture-dependent gateway parts) fail at import/run. The generator (`generate/mini.py`) has NOT been touched yet, so the new SQL rules would find no data. Nothing in gateway/web was changed for M2 yet. The gateway, web and brief work from the previous milestone is intact and was green BEFORE M2 started (gateway 110 run/0 fail/1 skipped; engine 93; web 37; `e2e:m1` and `e2e:ui` passed).
+### What exists now
+- **Line rules (SQL, `engine/sql/rules/`)**: `r_time_01` (R-TIME-01, scheme TMA: typical minutes per provider-day over 720, dollars ESTIMATED pro rata, minutes are OUR assumption in `ref_hcpcs.typical_minutes`), `r_geo_01` (R-GEO-01, TMB: same member and date at providers more than 100 km apart; flags the claim from the provider the member used less in the prior 180 days, ties to lower paid then larger provider id), `r_ip_01` (R-IP-01, PHB: office/home service strictly between admit and discharge of an inpatient stay).
+- **PEER channel (`engine/claimshield/detect/peer.py`)**: S-UPC (share of level 4-5 office E&M lines, trailing 3 months, shrunk toward the peer median, needs 20 E&M lines and a 0.15 gap), S-UTL (lines per member per month, 8+ members, 1.5x peer median), S-GHOST (share of members whose only provider in the prior 12 months is this one, 25%+), S-DIST (mean member-to-provider km, 100+). Peer group = same specialty, at least 5 peers, robust z (median, 1.4826 x MAD, floored) of 3 or more, and a pattern must show in at least 2 of the 6 evaluated months. Strength = min(1, 0.4 + 0.15 x (z - 3)). Hits go into the same `out_rule_hit` table with JSON stats in `detail`; dollars are ESTIMATED (or 0 for S-DIST).
+- **Scoring/pack**: exact vs estimated dollars (`ref.ESTIMATED_RULES`; an exact rule wins per line), `ScoredCase.dollars_est`, case `dollars_basis` EXACT/MIXED/ESTIMATED, header `dollars.estimated`. `decide_tier` is UNCHANGED: a peer signal alone is LOW (Monitor), LINE hard fact + PEER with strength 0.65+ is HIGH, LINE without a hard fact + PEER is MEDIUM. Pack evidence now has `type` `peer_stat`, `dollarsBasis`, line evidence ordered before peer evidence, numbers `E#.share/peer/peers/acuity/peerAcuity/lpm/km/months/days/cap`, `S.dollarsExact`, `S.dollarsEstimated` (`S.dollars` = their sum), limitation L2 reworded and optional L4 about peer comparisons and estimated dollars. Contract change in `contracts/schemas/evidence_pack.schema.json` (peer_stat, `[RS]-` detector pattern, `dollarsBasis`).
+- **Generator (`generate/mini.py`)**: 61 providers (P-0041..P-0061 added), 360 members + 30 ghost members, regions with lat/lon (D3 in a remote fourth place), 28 legitimate inpatient stays, region-aware visits (a member is never in two regions on one day), acuity-dependent visit levels, new tables `provider_location`, `member_location`, `inpatient_stay`. Schemes: P-0041 upcoding + duplicates (HIGH), P-0042 upcoding alone (Monitor), P-0043 impossible daily time (MEDIUM, with peer upcoding), P-0044 ghost members, 6 of them recorded deceased (HIGH), P-0045 utilization + duplicates (HIGH), P-0060 distant same-day claims (MEDIUM), P-0061 billing during stays (MEDIUM). Decoys (provider-level ground truth in `gt_scheme`/`gt_decoy_provider`): D1 P-0046 recurring treatment (flagged by S-UTL, Monitor), D2 shared buildings P-0037..40 and P-0023..26 (NO detector until the graph work; completely quiet), D3 P-0059 sole rural radiologist (S-DIST, Monitor), D4 P-0053 high-acuity cardiologist (S-UPC and S-UTL, Monitor). D5 (line-level modifier decoys) is unchanged and still never flagged.
+- **Eval**: line recall per rule (peer rules only over the evaluated window), provider recall per scheme, decoy providers with `flaggedBy`, best tier, `reachedHigh`, `opensCase`.
+- **Brief**: the template says "estimated exposure" instead of "recorded amounts" when the primary item is estimated, and splits recorded vs estimated dollars in the case context. Validator untouched.
+- **Web**: queue shows total dollars and "of which estimated"; case page shows exact + estimated and marks estimated evidence.
 
-### Done so far in M2 (all under `engine/`)
-- `claimshield/reference.py`: new constants (`TIME_CAP_MINUTES=720`, `GEO_KM=100`, `GEO_HISTORY_DAYS=180`, peer thresholds `PEER_MIN_PEERS=5`, `PEER_Z_ALERT=3.0`, `PEER_SHRINK_K=10`, `PEER_WINDOW_MONTHS=6`, `PEER_MIN_EM=30`, `PEER_MIN_MEMBERS=8`, `UPC_MIN_GAP=0.15`, `UTL_MIN_RATIO=1.5`, `GHOST_MIN_SHARE=0.25`, `DIST_MIN_KM=60`, `GHOST_LOOKBACK_MONTHS=12`). `RULES` now has 13 entries: SQL rules R-TIME-01 (scheme TMA, not a hard fact), R-GEO-01 (TMB, hard), R-IP-01 (PHB, hard), and PEER signals S-UPC (UPC), S-UTL (UTL), S-GHOST (PHC), S-DIST (DIS), none a hard fact. New sets `ESTIMATED_RULES`, `PEER_RULES`, `SQL_RULES`, `CHANNEL_OF`. Also extended: `SCHEME_WEIGHTS`, `HYPOTHESIS_TEXT`, `RULE_TEMPLATE` (placeholders `{{EV.share}}`, `{{EV.peer}}`, `{{EV.peers}}`, `{{EV.lpm}}`, `{{EV.acuity}}`, `{{EV.peerAcuity}}`, `{{EV.km}}`, `{{EV.cap}}`, `{{EV.days}}`, `{{EV.months}}`), 7 new `POLICY_SECTIONS` (POL-CODE-2.3, POL-TIME-6.1, POL-TIME-6.2, POL-ELIG-3.2, POL-ELIG-3.3, POL-UTIL-7.1, POL-UTIL-7.2) and glossary GL-PEER, GL-TIME. RULE: templates and evidence names must contain NO digits (the brief validator V5 rejects free digits; that is why S-UPC says "levels four and five").
-- `engine/sql/canonical_schema.sql`: new tables `provider_location(provider_id, region, lat, lon, is_rural, building_id, phone_syn)`, `member_location(member_id, region, lat, lon)`, `inpatient_stay(stay_id, member_id, admit_dt, discharge_dt)`.
-- `engine/sql/rules/r_time_01.sql` (param `$cap`; flags every line of a provider-day over the cap; dollars = paid x excess/total, ESTIMATED), `r_ip_01.sql` (non-facility POS strictly between admit and discharge), `r_geo_01.sql` (params `$km`, `$history`; same member and date, providers more than km apart; flags the claim from the provider the member used less in the prior 180 days, ties to the lower paid claim then the larger provider id). None of the three SQL files has been executed yet; expect to debug them.
-- `detect/rules.py`: `RULE_FILES` and `_params` extended; `run_all_rules(con, store=True, peer=True)` appends `run_peer_signals(con)` (HIT_COLUMNS shape, rule_id such as `S-UPC`, `detail` = JSON stats, dollars = estimated per line).
+### Result of the seeded run (RUN-001)
+14 cases (5 HIGH, 9 MEDIUM) + 5 Monitor items (P-0032, P-0042, P-0046, P-0053, P-0059). Recall 1.0 on all 12 rules/signals, every injected scheme provider flagged, 0 of 12 D5 decoy lines flagged, no decoy provider reaches HIGH or opens a case.
 
-### Remaining work (in this order)
-1. **`engine/claimshield/detect/peer.py`**: `run_peer_signals(con) -> DataFrame[HIT_COLUMNS]`. Evaluate the last 6 months (2025-07..12) with trailing 3-month windows. Peer group = same specialty excluding self; fewer than `PEER_MIN_PEERS` peers means no signal. Robust z = (x - median)/(1.4826*MAD) with a MAD floor; rates shrunk toward the peer median by n/(n+k). Alert when z >= 3 plus the absolute-gap guard. Signals: S-UPC (level 4-5 share of office E&M lines via `ref_hcpcs.em_level`, n_em >= 30; flagged lines = that month's level 4-5 lines; est dollars = n_em_month x max(0, shrunk share - peer median) x (avg allowed L45 - avg allowed L123), spread over lines; `detail` JSON carries share, peer median, n peers, z, provider mean acuity, peer mean acuity), S-UTL (lines per distinct member per month, >= 8 members and >= 1.5x peer median; lines of members above the threshold; est dollars = (lpm - peer median) x n_members x avg paid per line), S-GHOST (share of the provider's members whose ONLY provider over the prior 12 months is this one; flagged lines = their lines that month; est dollars = their paid), S-DIST (mean Haversine km member to provider vs peers, >= 60 km; dollars 0). Peer strength per alert from z, e.g. min(1, 0.4 + 0.15*(z-3)); `cases/alerts.py build_alerts` must use that per-alert strength for PEER rules (today it uses the fixed base strength from `ref.RULES`).
-2. **Generator `generate/mini.py`** (keep named RNG streams; new components get new stream names). Append providers P-0041..P-0062. Required roles: upc_a=P-0041 upcoding plus duplicates (corroborated, expect HIGH); upc_b=P-0042 upcoding alone (peer only, expect Monitor); tma=P-0043 (about 10 days with 22 extra 99215 visits, over 720 minutes, spread over at least 3 months); phc=P-0044 ghost-member billing (30 ghost members with no other claims, 6 with a recorded death so R-DOD fires); utl=P-0045 utilization plus R-MUE hits (corroborated); D1=P-0046 sustained recurring-treatment pattern that looks like UTL but is legitimate; D4 = a high-acuity cardiologist whose panel has high acuity (make level probability depend on member acuity for everyone); D3 = sole rural radiologist at a remote 4th location that region-2 members travel to; tmb = a clinic in another region billing members who are billed elsewhere the same day; phb = a clinic billing office visits during inpatient stays; D2 = two buildings x 4 unrelated providers sharing `building_id`/`phone_syn` (NO detector until the graph milestone; say so honestly). Make legit data region-aware (member and provider regions, 90% same-region choice, skip a legit visit if the member already has a visit that day in another region, skip legit visits during inpatient stays, create about 25 legit stays) so the new SQL rules are clean on legit data. Write `provider_location`, `member_location`, `inpatient_stay`; ghost members are excluded from legit visits. Ground truth: provider-level decoys D1-D4 as `gt_scheme` rows with kind DECOY (D1-D4 lines are NOT line-labelled DECOY_NEGATIVE; D5 stays line-level). Update `N_MEMBERS`/scale test (15k-25k lines), `ROLE`, `SCHEMES`.
-3. **Scoring, dollars, pack** (`cases/score.py`, `cases/rows.py`, `evidence/pack.py`): split line dollars into EXACT and ESTIMATED by `ESTIMATED_RULES` (an exact rule wins per line); add `ScoredCase.dollars_est`; case row `dollars_est` and `dollars_basis` EXACT/ESTIMATED/MIXED; header `dollars.estimated`; dscore uses exact+estimated; `channels["PEER"]` = max peer alert strength; leave `decide_tier` unchanged (peer-only => LOW => Monitor; LINE hard + PEER with es >= 0.65 => HIGH; LINE non-hard + PEER => MEDIUM). Update `fv` features and `raise_conf` text. Pack: evidence `channel` from `ref.CHANNEL_OF`, evidence `type` `peer_stat` for peer items, numbers `E#.share/peer/peers/acuity/peerAcuity/lpm/km/months/days/cap/n/dollars`, plus `S.dollarsExact` and `S.dollarsEstimated`; update limitation L2 (it must no longer say "line rules only"; trend, network and prediction are still unavailable); add an optional limitation that peer comparisons are statistical; cite policies/glossary for the new rules. **Contract change** in `contracts/schemas/evidence_pack.schema.json`: evidence `type` enum adds `peer_stat`; the `detector` pattern must accept `S-UPC@v1` (for example `^[RS]-[A-Z]+(-[0-9]{2})?@v[0-9]+$`).
-4. **Pipeline and eval** (`pipeline.py`, `eval/metrics.py`): extend `SCHEME_TO_RULE`; line recall for rules and provider-level recall for peer signals; for decoy providers D1-D4 report which signal flagged them and the best tier reached (must never be HIGH); D5 line decoys must still never be flagged; pass a provider->tier map into `evaluate`. Keep the ground-truth isolation rule (only `generate/`, `eval/`, `pipeline.py`, `paths.py`, `make_fixture.py` may reference gt).
-5. **Brief template tweak** (`gateway/src/main/java/com/claimshield/gateway/brief/BriefTemplate.java`): when the primary evidence channel is PEER or dollars are estimated, do not say "recorded amounts"; use `{{S.dollarsEstimated}}` wording; every number stays a placeholder. Add a Java test. Do not otherwise change the validator.
-6. **Tests**: SQL rule tests (TinyDb in `engine/tests/helpers.py`) for R-TIME, R-GEO, R-IP positives and negatives; peer-signal unit tests (small-peer skip, MAD floor, shrinkage, thresholds, acuity context); generator tests (new schemes present and found, legit data clean for the new SQL rules, decoys D1/D3/D4 flagged by peer signals only and never HIGH, D2 providers in no HIGH case, D5 still never flagged); scoring tests (LINE hard + PEER => HIGH, LINE non-hard + PEER => MEDIUM, PEER only => Monitor, exact/estimated split); pack schema and placeholder tests for peer evidence. Update M1 tests that hard-code counts or tiers (`test_pack_publish.py`, `test_generator.py` scale and "no hit outside positives" which must call `run_all_rules(..., peer=False)`, pipeline summary keys). Update gateway tests that depend on fixture composition (they use `caseWith(scheme, tier)` and `allCaseIds()`: check `ReadApiIT`, `WorkflowIT`, `QueuePackingTest`, `BriefIT`, `BriefFallbackIT`, `M1EndToEndIT`) and web test builders if the case/queue types gain fields.
-7. **Regenerate and verify**: `npm run fixture`, then `npm test`, `npm run lint`, `npm run e2e:m1`, and `npm run e2e:ui` (run the last in the user's Terminal panel with the terminal tool; sandboxed shells cannot bind ports). Update this file, `README.md` and the architecture doc, then give the 5-part final report.
+### Honest limits
+- Peer statistics use small synthetic peer groups (3 to 24); the upcoding gap and persistence guards exist because small groups are noisy. Evaluation is against injected ground truth.
+- Typical minutes, distances and thresholds are demo assumptions, not CMS data. D2 needs the graph work to mean anything. Peer-only patterns never open a case by design.
+- Case IDs skip numbers because Monitor items consume IDs (existing behaviour).
 
-### Design decisions already taken (do not re-litigate)
-- Peer-only signals never open a case: they become Monitor items (LOW) with "what would raise confidence". Corroboration (LINE + PEER) is how a case reaches HIGH or MEDIUM. This matches the existing `decide_tier`.
-- Decoys D1-D4 are honest false positives of the peer statistics (D2 of a graph detector that does not exist yet); the system must show context (acuity, rural, recurring) and never rate them HIGH. Graph, prediction, the SELF (temporal) channel, chat, voice, CMS adapter and polish are out of scope for M2.
-- Estimated dollars are always labelled ESTIMATED and kept separate from exact dollars; numbers in packs and briefs stay registry placeholders.
-- Ownership boundaries are unchanged: the engine writes only `serving_*`; the gateway writes only `wf_*`.
+### Tests added/changed
+`engine/tests/test_m2.py` (SQL rules, peer maths, scoring, pipeline outcomes, decoys), updated `test_generator.py`, `test_pack_publish.py`, `tests/helpers.py` (TinyDb now has `ref_hcpcs`, `place`, `stay`, `pos`); gateway `BriefValidatorTest` (+4, data-independent now), `ReadApiIT`/`AuditIT` (counts come from the fixture); web `Queue.test.tsx`.
 
-### Environment reminders
-- Windows. Bash heredocs and `node -e "..."` with apostrophes or backticks break in this environment; write files with the Write or Edit tools. The working directory drifts; use absolute paths.
-- Engine python: `engine/.venv/Scripts/python.exe`. Maven offline works (`mvn -q -o ...`) from `gateway/`; surefire reports are in `gateway/target/surefire-reports`.
-- Demo passwords live only in `gateway/src/main/resources/demo-users.csv`; never repeat them in chat.
-- M1 (vertical slice) and the Brief + Validator milestone are complete and documented in sections 4A and 4B above.
+## 10. Not built (everything else listed in earlier sections IS built)
 
----
-
-## 10. Not built yet
-
-Claude-written briefs (the template brief and validator are built, see 4B), chat, voice, Sarvam, graph, peer/temporal/IsolationForest detectors, 30/60/90 prediction, precedent co-sign and conflict checks, exception proposal/simulation/governance/re-run and the funnel diff, `/api/jobs`, the gateway-to-engine HTTP link, knowledge screens, i18n and onboarding, the CMS adapter and CMS-based dataset, train/validation/test split and multi-seed evaluation, the gateway serving the built SPA for deep links, Docker image builds, `git init`.
+Only: the CMS synthetic-data adapter, multi-seed evaluation, a live Anthropic key run. See section 0, Limitations.
 
 ---
 
@@ -232,8 +283,5 @@ Superseded by section 4A (M1 results). Earlier scaffold-time checks (dev stack b
 4. **Demo credentials** are in `gateway/src/main/resources/demo-users.csv` (random demo-only passwords); replace before any shared deployment.
 5. **Which API keys and modes** (`LLM_MODE`, `VOICE_ENABLED`) the demo machine uses.
 
-## 13. Next concrete steps (in order)
-1. **FINISH M2 (section 4C)**: peer.py, generator, scoring/pack/eval, tests, fixture regeneration, full suite and E2E. The template brief and validator are DONE (section 4B).
-2. Remaining official behaviours: upcoding, impossible timing (minutes and geography), excessive utilization (frequency), phantom services (inpatient overlap, ghost members); decoys D1-D4. This adds the PEER channel so HIGH can come from corroboration.
-3. Precedent co-sign, exception propose/simulate/approve, the gateway-to-engine re-run job and the funnel diff (the Second Brain proof).
-4. Graph and timeline views; 30/60/90 prediction; Claude brief; chat; voice; polish.
+## 13. Next steps (optional)
+Optional only: the CMS adapter attempt, a multi-seed evaluation, and a run with a real Anthropic key. Nothing required is open.

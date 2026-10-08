@@ -20,6 +20,7 @@
     "fixture": "node scripts/run-engine.mjs --module claimshield.make_fixture",
     "pipeline": "node scripts/run-engine.mjs --module claimshield.pipeline",
     "e2e:m1": "node scripts/e2e-m1.mjs",
-    "e2e:ui": "node scripts/e2e-ui.mjs"
+    "e2e:ui": "node scripts/e2e-ui.mjs",
+    "e2e:brain": "node scripts/e2e-brain.mjs"
   }
 }

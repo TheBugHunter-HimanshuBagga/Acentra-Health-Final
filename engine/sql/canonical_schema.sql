@@ -126,6 +126,43 @@ CREATE TABLE inpatient_stay (
   CHECK (discharge_dt >= admit_dt)
 );
 
+CREATE TABLE owner (
+  owner_id VARCHAR PRIMARY KEY,
+  name_syn VARCHAR NOT NULL
+);
+
+CREATE TABLE ownership (
+  provider_id VARCHAR NOT NULL REFERENCES provider(provider_id),
+  owner_id    VARCHAR NOT NULL REFERENCES owner(owner_id),
+  is_control  BOOLEAN NOT NULL,                -- only control owners link providers into one group
+  pct         DOUBLE NOT NULL,
+  PRIMARY KEY (provider_id, owner_id)
+);
+
+CREATE TABLE facility (
+  facility_id VARCHAR PRIMARY KEY,
+  name_syn    VARCHAR NOT NULL,
+  building_id VARCHAR
+);
+
+CREATE TABLE provider_facility (
+  provider_id VARCHAR NOT NULL REFERENCES provider(provider_id),
+  facility_id VARCHAR NOT NULL REFERENCES facility(facility_id),
+  PRIMARY KEY (provider_id, facility_id)
+);
+
+CREATE TABLE investigation (
+  investigation_id VARCHAR PRIMARY KEY,
+  provider_id      VARCHAR NOT NULL REFERENCES provider(provider_id),
+  scheme_type      VARCHAR NOT NULL,
+  opened_dt        DATE NOT NULL,
+  closed_dt        DATE NOT NULL,
+  disposition      VARCHAR NOT NULL,           -- CONFIRMED | EDUCATION | INSUFFICIENT | UNFOUNDED
+  reason_code      VARCHAR,
+  exposure         DOUBLE,
+  recovered        DOUBLE
+);
+
 CREATE TABLE gen_manifest (
   run_id      VARCHAR PRIMARY KEY,
   master_seed BIGINT NOT NULL,

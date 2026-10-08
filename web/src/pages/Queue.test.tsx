@@ -25,6 +25,20 @@ describe('QueuePage', () => {
     expect(screen.getByText(/1 of 2 cases fit/)).toBeInTheDocument()
   })
 
+  it('shows the total and says how much of it is estimated', async () => {
+    mockFetch({
+      'GET /api/queue': response([
+        queueItem({ caseId: 'CASE-0010', dollars: { exact: 2714, estimated: 2097, basis: 'MIXED' } }),
+        queueItem({ caseId: 'CASE-0002', dollars: { exact: 1766.4, estimated: 0, basis: 'EXACT' } }),
+      ]),
+    })
+    renderWithProviders(<QueuePage />)
+    expect(await screen.findByText('$4,811.00')).toBeInTheDocument()
+    expect(screen.getByText('of which estimated $2,097.00')).toBeInTheDocument()
+    expect(screen.getByText('$1,766.40')).toBeInTheDocument()
+    expect(screen.getAllByText(/of which estimated/)).toHaveLength(1)
+  })
+
   it('asks the server again when the horizon or the capacity changes', async () => {
     const m = mockFetch({ 'GET /api/queue': response() })
     renderWithProviders(<QueuePage />)

@@ -5,6 +5,7 @@ Dollars are never summed across detectors here; that happens at case level by li
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -28,6 +29,7 @@ class Alert:
     n_lines: int
     lines: list[tuple[str, int, float]] = field(default_factory=list)   # (claim_id, line_no, dollars)
     suppressed_by_exception_id: str | None = None
+    detail: dict | None = None                  # statistics behind a line-less alert (temporal, infrastructure)
 
 
 def read_hits(con: duckdb.DuckDBPyConnection) -> list[dict]:
@@ -43,6 +45,14 @@ def read_hits(con: duckdb.DuckDBPyConnection) -> list[dict]:
     return out
 
 
+def alert_strength(rule_id: str, rows: list[dict]) -> float:
+    """Fixed base strength for rules; the largest z-based strength in the group for PEER signals."""
+    base = ref.RULES[rule_id][2]
+    if rule_id not in ref.PEER_RULES and rule_id not in ref.GRAPH_RULES:
+        return base
+    return max(json.loads(r["detail"]).get("strength", base) for r in rows)
+
+
 def build_alerts(hits: list[dict]) -> list[Alert]:
     groups: dict[tuple[str, str, date], list[dict]] = {}
     for h in hits:
@@ -52,7 +62,8 @@ def build_alerts(hits: list[dict]) -> list[Alert]:
     for i, key in enumerate(sorted(groups), start=1):
         rule_id, provider_id, month = key
         rows = groups[key]
-        scheme, _name, strength, *_ = ref.RULES[rule_id]
+        scheme = ref.RULES[rule_id][0]
+        strength = alert_strength(rule_id, rows)
         dates = [r["service_dt"] for r in rows]
         alerts.append(Alert(
             alert_id=f"ALR-{i:06d}", rule_id=rule_id, scheme_type=scheme, provider_id=provider_id,
@@ -62,13 +73,26 @@ def build_alerts(hits: list[dict]) -> list[Alert]:
     return alerts
 
 
+def renumber(alerts: list[Alert]) -> list[Alert]:
+    """Deterministic IDs over the combined alert set (rule, provider, window)."""
+    ordered = sorted(alerts, key=lambda a: (a.rule_id, a.provider_id, a.window_start, a.window_end))
+    for i, a in enumerate(ordered, start=1):
+        a.alert_id = f"ALR-{i:06d}"
+    return ordered
+
+
+FAMILY = {"LINE": "rule", "PEER": "peer", "NETWORK": "graph", "SELF": "temporal"}
+
+
 def store_alerts(con: duckdb.DuckDBPyConnection, run_id: str, alerts: list[Alert]) -> None:
     con.execute("DELETE FROM out_alert_line")
     con.execute("DELETE FROM out_alert")
     if not alerts:
         return
-    a = pd.DataFrame([(x.alert_id, run_id, x.rule_id, ref.RULE_VERSION, "rule", x.scheme_type, x.provider_id,
-                       x.window_start, x.window_end, x.score, x.dollars, "EXACT", x.n_lines,
+    a = pd.DataFrame([(x.alert_id, run_id, x.rule_id, ref.RULE_VERSION, FAMILY[ref.CHANNEL_OF[x.rule_id]],
+                       x.scheme_type, x.provider_id,
+                       x.window_start, x.window_end, x.score, x.dollars,
+                       "ESTIMATED" if x.rule_id in ref.ESTIMATED_RULES else "EXACT", x.n_lines,
                        x.suppressed_by_exception_id) for x in alerts],
                      columns=["alert_id", "run_id", "rule_id", "rule_version", "family", "scheme_type",
                               "provider_id", "window_start", "window_end", "score", "dollars", "dollars_basis",

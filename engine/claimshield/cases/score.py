@@ -14,7 +14,9 @@ from datetime import date
 import numpy as np
 
 from claimshield import reference as ref
+from claimshield.brain import precedents as prec
 from claimshield.cases.consolidate import CaseDraft
+from claimshield.detect.temporal import trend_slope
 
 CHANNEL_WEIGHT = {"LINE": 0.85, "PEER": 0.60, "SELF": 0.50, "NETWORK": 0.70}
 CORROBORATION = {0: 0.0, 1: 0.25, 2: 0.60, 3: 0.85, 4: 1.0}
@@ -111,6 +113,7 @@ class ScoredCase:
     risk: float
     dollar_score: float
     dollars_exact: float
+    dollars_est: float
     member_impact: float
     severity: float
     evidence_strength: float
@@ -128,28 +131,44 @@ class ScoredCase:
     first_service: date
     last_service: date
     raise_conf: list[str] = field(default_factory=list)
+    trend_slope: float | None = None
+    risk_h: dict[int, float] = field(default_factory=dict)         # horizon (days) -> risk used for the queue
+    utility_h: dict[int, float] = field(default_factory=dict)
+    outlook: dict = field(default_factory=lambda: {"available": False})
+    matches: list = field(default_factory=list)                    # precedent matches (brain.precedents.Match)
+    fv_names: list[str] = field(default_factory=lambda: list(prec.FV_NAMES))
+    exception_id: str | None = None
+
+
+RISK_LAMBDA = 0.30         # weight of the predicted repeat/escalation probability in risk_h
 
 
 def score_drafts(drafts: list[CaseDraft], *, acuity: dict[str, float], enroll: dict[str, date],
-                 provider_lines: dict[str, int], asof: date) -> list[ScoredCase]:
+                 provider_lines: dict[str, int], asof: date, predictions: dict | None = None,
+                 prediction_eval: dict | None = None, pfeat: dict | None = None,
+                 precedents: list | None = None, fv_stats: dict | None = None,
+                 specialty_of: dict | None = None) -> list[ScoredCase]:
     raw = []
     for d in drafts:
         line_dollars: dict[tuple[str, int], float] = {}
         line_rule: dict[tuple[str, int], str] = {}
+        best: dict[tuple[str, int], tuple[int, float]] = {}
         for h in d.hits:
             k = (h["claim_id"], h["line_no"])
-            if h["dollars"] >= line_dollars.get(k, -1.0):
+            rank = (0 if h["rule_id"] in ref.ESTIMATED_RULES else 1, h["dollars"])   # exact beats estimated
+            if k not in best or rank >= best[k]:
+                best[k] = rank
                 line_dollars[k] = h["dollars"]
                 line_rule[k] = h["rule_id"]
-        dollars = round(sum(line_dollars.values()), 2)
+        dollars = round(sum(line_dollars.values()), 2)          # exact + estimated, used for ranking
         members = sorted({h["member_id"] for h in d.hits})
         by_scheme: dict[str, float] = defaultdict(float)
         for a in d.alerts:
             by_scheme[a.scheme_type] += a.dollars
         hyps = [{"code": s, "text": ref.HYPOTHESIS_TEXT[s], "dollars": round(v, 2)}
                 for s, v in sorted(by_scheme.items(), key=lambda kv: (-kv[1], kv[0]))]
-        line_strength = max(a.score for a in d.alerts)
-        channels = {"LINE": line_strength, "PEER": 0.0, "SELF": 0.0, "NETWORK": 0.0}
+        channels = {c: max((a.score for a in d.alerts if ref.CHANNEL_OF[a.rule_id] == c), default=0.0)
+                    for c in ("LINE", "PEER", "SELF", "NETWORK")}
         rules_hit = {h["rule_id"] for h in d.hits}
         hard_fact = bool(rules_hit & ref.HARD_FACT_RULES)
         direct = sum(v for k, v in line_dollars.items() if line_rule[k] in ("R-EXCL-01", "R-DOD-01"))
@@ -157,50 +176,78 @@ def score_drafts(drafts: list[CaseDraft], *, acuity: dict[str, float], enroll: d
         monthly: dict[date, float] = defaultdict(float)
         for a in d.alerts:
             monthly[a.window_start.replace(day=1)] += a.dollars
-        es = evidence_strength(channels, hard_fact, len(months))
-        tier, reasons = decide_tier(channels, hard_fact, es, hard_direct_dollars=direct)
+        n_ch = sum(1 for s in channels.values() if s >= 0.3)
+        pf = (pfeat or {}).get(d.primary, {})
+        fv = prec.fv_vector(pf, dollars, n_ch) if pf else [0.0] * len(prec.FV_NAMES)
+        matches, p_fit, unfounded = [], 0.0, 0
+        if precedents and fv_stats and pf:
+            # only precedents of the case's LEADING scheme count: a confirmed pattern of another kind says nothing
+            matches = prec.match(fv, precedents, {hyps[0]["code"]}, None, fv_stats)
+            p_fit, unfounded = prec.fit(matches)
+        es = evidence_strength(channels, hard_fact, len(months), precedent_fit=p_fit, has_precedent=bool(matches))
+        tier, reasons = decide_tier(channels, hard_fact, es, hard_direct_dollars=direct, precedent_fit=p_fit,
+                                    unfounded_matches=unfounded)
         sev = max(ref.SCHEME_WEIGHTS[h["code"]][0] for h in hyps)
         harm = max(ref.SCHEME_WEIGHTS[h["code"]][1] for h in hyps)
         n_m = len(members)
         member_impact = (1 - math.exp(-n_m / 25)) * (0.4 + 0.6 * harm)
         rsig = risk_signal(channels)
-        n_lines_p = max(1, provider_lines.get(d.primary, 1))
-        by_rule_p = defaultdict(int)
-        for h in d.hits:
-            if h["provider_id"] == d.primary:
-                by_rule_p[h["rule_id"]] += 1
-        tenure = max(0, (asof - enroll[d.primary]).days / 30.4)
-        fv = [0.0, 0.0, by_rule_p["R-DUP-01"] / n_lines_p, by_rule_p["R-PTP-01"] / n_lines_p,
-              by_rule_p["R-MUE-01"] / n_lines_p, 0.0, 0.0, 0.0, min(1.0, tenure / 120),
-              math.log1p(dollars), float(sum(1 for s in channels.values() if s >= 0.3)),
-              float(np.mean([acuity[m] for m in members])) if members else 0.0]
         raise_conf = []
         if tier == "LOW":
             if not hard_fact:
                 raise_conf.append("A deterministic exact-fact rule hit (none fired)")
             if len(months) < 3:
                 raise_conf.append(f"Signals in at least 3 different months (seen in {len(months)})")
-            raise_conf.append("A second independent evidence channel (peer, trend or network signals are not "
-                              "available in this build)")
+            if channels["PEER"] >= 0.3 and channels["LINE"] < 0.3:
+                raise_conf.append("A line-level rule hit on the same provider (the pattern is statistical only)")
+            else:
+                raise_conf.append("A second independent evidence channel (trend and network signals are not "
+                                  "available in this build)")
         raw.append((d, line_dollars, line_rule, dollars, members, hyps, channels, es, tier, reasons, sev,
-                    member_impact, rsig, monthly, months, hard_fact, fv, raise_conf))
+                    member_impact, rsig, monthly, months, hard_fact, fv, raise_conf, matches, p_fit))
 
     d_ref = float(np.percentile([r[3] for r in raw], 95)) if raw else 1.0
     d_ref = d_ref if d_ref > 0 else 1.0
     out: list[ScoredCase] = []
     for (d, ld, lr, dollars, members, hyps, channels, es, tier, reasons, sev, mi, rsig, monthly, months,
-         hard_fact, fv, raise_conf) in raw:
+         hard_fact, fv, raise_conf, matches, p_fit) in raw:
         dscore = float(np.clip(math.log1p(dollars) / math.log1p(d_ref), 0, 1))
-        util = (UTILITY_W["risk"] * rsig + UTILITY_W["dollar"] * dscore + UTILITY_W["member"] * mi
-                + UTILITY_W["severity"] * sev + UTILITY_W["evidence"] * es) * TIER_MULT.get(tier, 0.0)
-        dts = [h["service_dt"] for h in d.hits]
+        rest = (UTILITY_W["dollar"] * dscore + UTILITY_W["member"] * mi + UTILITY_W["severity"] * sev
+                + UTILITY_W["evidence"] * es)
+        mult = TIER_MULT.get(tier, 0.0)
+        risk_h, util_h, outlook = {}, {}, {"available": False, "reason": "no prediction model was trained"}
+        if predictions:
+            best = {h: max(((predictions.get(p, {}).get(str(h), 0.0), p) for p, _r in d.subjects), default=(0.0, ""))
+                    for h in (30, 60, 90)}
+            for h in (30, 60, 90):
+                risk_h[h] = 1 - (1 - rsig) * (1 - RISK_LAMBDA * best[h][0])
+                util_h[h] = (UTILITY_W["risk"] * risk_h[h] + rest) * mult
+            horizons = {str(h): {"probability": round(best[h][0], 4), "provider": best[h][1],
+                                 "factors": predictions.get(best[h][1], {}).get("factors", {}).get(str(h), [])}
+                        for h in (30, 60, 90)}
+            ev90 = ((prediction_eval or {}).get("horizons", {}).get("90", {}).get("test", {}))
+            outlook = {"available": True, "horizons": horizons,
+                       "beatsPersistence": ev90.get("beatsPersistence"),
+                       "liftOverBestPersistence": ev90.get("liftOverBestPersistence"),
+                       "caveat": "A model estimate trained on synthetic labels. It ranks cases; it is not evidence "
+                                 "and never changes the tier. Factors are associations, not causes."}
+        else:
+            for h in (30, 60, 90):
+                risk_h[h] = rsig
+                util_h[h] = (UTILITY_W["risk"] * rsig + rest) * mult
+        util = util_h[90]
+        dts = [h["service_dt"] for h in d.hits] or [x for a in d.alerts for x in (a.window_start, a.window_end)]
+        est = round(sum(v for k, v in ld.items() if lr[k] in ref.ESTIMATED_RULES), 2)
         out.append(ScoredCase(
             draft=d, tier=tier, tier_reasons=reasons, channels=channels, risk=rsig, dollar_score=dscore,
-            dollars_exact=dollars, member_impact=mi, severity=sev, evidence_strength=es, precedent_fit=0.0,
+            dollars_exact=round(dollars - est, 2), dollars_est=est, member_impact=mi, severity=sev,
+            evidence_strength=es, precedent_fit=p_fit, matches=matches,
             est_hours=est_hours(len(d.subjects), len(ld), len(hyps)), utility=util,
-            trend=trend_label(dict(monthly), asof), hypotheses=hyps, members=members, line_dollars=ld,
+            trend=trend_label(dict(monthly), asof), trend_slope=trend_slope(dict(monthly)), hypotheses=hyps,
+            members=members, line_dollars=ld,
             line_rule=lr, months_with_alerts=len(months), hard_fact=hard_fact, fv=fv,
-            first_service=min(dts), last_service=max(dts), raise_conf=raise_conf))
+            first_service=min(dts), last_service=max(dts), raise_conf=raise_conf, risk_h=risk_h,
+            utility_h=util_h, outlook=outlook))
     return out
 
 

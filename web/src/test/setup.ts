@@ -24,3 +24,4 @@ vi.stubGlobal(
     disconnect() {}
   },
 )
+import '@/i18n'

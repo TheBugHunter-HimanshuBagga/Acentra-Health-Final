@@ -46,6 +46,13 @@ public class ServingRepository {
         .orElseThrow(() -> ApiException.notFound("Evidence pack for " + caseId));
   }
 
+  /** One JSON document stored per case (graph, timeline). Table and column are fixed strings from this codebase. */
+  public String caseJson(String table, String column, String runId, String caseId) {
+    return jdbc.queryForList("SELECT " + column + " FROM " + table + " WHERE run_id = ? AND case_id = ?",
+        String.class, runId, caseId).stream().findFirst()
+        .orElseThrow(() -> ApiException.notFound(table.replace("serving_", "") + " for " + caseId));
+  }
+
   public String singleJson(String table, String column, String runId) {
     // table and column are fixed strings from this codebase, never user input
     return jdbc.queryForList("SELECT " + column + " FROM " + table + " WHERE run_id = ?", String.class, runId)

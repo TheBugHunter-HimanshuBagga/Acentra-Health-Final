@@ -36,22 +36,22 @@ public class BriefValidator {
   static final String SCHEMA_RESOURCE = "/schemas/brief_output.schema.json";
   static final Set<String> NORMAL_STOP = Set.of("end_turn", "tool_use", "stop_sequence", "template");
 
-  private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{([A-Za-z0-9_.]+)}}");
-  private static final Pattern ENTITY = Pattern.compile(
+  static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{([A-Za-z0-9_.]+)}}");
+  static final Pattern ENTITY = Pattern.compile(
       "(?<![A-Za-z0-9])(?:P|M|C|F|O|INV|PRC|EXC|CASE)-[A-Za-z0-9]+");
-  private static final Pattern TIER_UPPER = Pattern.compile("\\b(HIGH|MEDIUM|LOW)\\b");
-  private static final Pattern TIER_WORDS = Pattern.compile("\\b(high|medium|low)[ -](?:confidence|tier|risk)\\b",
+  static final Pattern TIER_UPPER = Pattern.compile("\\b(HIGH|MEDIUM|LOW)\\b");
+  static final Pattern TIER_WORDS = Pattern.compile("\\b(high|medium|low)[ -](?:confidence|tier|risk)\\b",
       Pattern.CASE_INSENSITIVE);
-  private static final Pattern INJECTION = Pattern.compile(
+  static final Pattern INJECTION = Pattern.compile(
       "\\b(?:ignore|disregard|forget)\\b.{0,40}\\b(?:previous|above|prior|instructions?|rules?|all)\\b",
       Pattern.CASE_INSENSITIVE);
-  private static final Pattern MARKUP = Pattern.compile("https?://|www\\.|\\]\\(|<\\s*/?[A-Za-z]|`|&[a-z]+;",
+  static final Pattern MARKUP = Pattern.compile("https?://|www\\.|\\]\\(|<\\s*/?[A-Za-z]|`|&[a-z]+;",
       Pattern.CASE_INSENSITIVE);
-  private static final Pattern CERTAINTY = Pattern.compile(
+  static final Pattern CERTAINTY = Pattern.compile(
       "\\b(?:proves?|proven|definitely|certainly|undoubtedly|clearly shows?|conclusively|beyond doubt)\\b",
       Pattern.CASE_INSENSITIVE);
   /** Stems checked in addition to the pack's own forbiddenTerms. */
-  static final List<String> EXTRA_FORBIDDEN = List.of("defraud", "conspir", "bribe", "embezzl", "crime", "unlawful",
+  public static final List<String> EXTRA_FORBIDDEN = List.of("defraud", "conspir", "bribe", "embezzl", "crime", "unlawful",
       "illicit", "cheat", "swindl", "misappropriat", "perjur", "malicious");
 
   private final Schema schema;

@@ -64,7 +64,7 @@ export const me = (role: Role = 'INVESTIGATOR', username = role.toLowerCase()): 
   displayName: `${username} user`,
   role,
   language: 'en',
-  onboarded: false,
+  onboarded: true,
   onboardingSkipped: false,
 })
 

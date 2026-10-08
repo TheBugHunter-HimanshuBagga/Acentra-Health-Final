@@ -136,7 +136,7 @@ class WorkflowIT extends GatewayIT {
   // ----------------------------------------------------------------------------- Reject / Request info
   @Test
   void rejectingMovesToReviewAndTheCaseCanThenBeClosedUnfoundedWithAnEligibleException() throws Exception {
-    String id = caseWith("DME", "MEDIUM");           // equipment rule is not a hard-fact rule
+    String id = caseWith("DME", "HIGH");             // equipment, referral and ramp signals are not hard-fact rules
     JsonNode r = review("investigator", id, Map.of("action", "REJECT", "reasonCode", "LEGIT_CLINICAL_PATTERN",
         "notes", "Documented ongoing need."), 201);
     assertThat(r.get("caseStatus").asString()).isEqualTo("IN_REVIEW");
@@ -271,7 +271,7 @@ class WorkflowIT extends GatewayIT {
     assertThat(p.get("fv_version")).isEqualTo("fv_v1");
     assertThat(json.readTree((String) p.get("feature_vector_json")).size()).isEqualTo(12);
     assertThat(json.readTree((String) p.get("rule_ids_json")).toString()).contains("R-MUE-01");
-    assertThat(get("investigator", "/api/precedents")).hasSize(1);
+    assertThat(get("investigator", "/api/precedents?status=PENDING_COSIGN")).hasSize(1);
   }
 
   @Test

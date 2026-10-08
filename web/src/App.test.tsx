@@ -5,6 +5,13 @@ import App from './App'
 import { caseDetail, me, mockFetch, queueItem, renderWithProviders, review } from '@/test/utils'
 
 const emptyQueue = { runId: 'RUN-001', horizon: 90, capacityHours: 240, usedHours: 0, items: [] }
+const dashboard = {
+  runId: 'RUN-001',
+  kpis: { alerts: 10, cases: 2, high: 1, medium: 1, monitor: 3, exactDollars: 100, estimatedDollars: 50 },
+  needsYouNow: [{ caseId: 'CASE-0001', dollars: 100, hypotheses: ['DUP'], primary: 'P-0001', tier: 'HIGH' }],
+  exposureByScheme: [{ scheme: 'DUP', label: 'Duplicate billing', cases: 1, dollars: 100 }],
+  compounding: { activeExceptions: 0, alertsSuppressed: 0, casesTotal: 2, casesWithPrecedent: 1, livePrecedents: 0, seedPrecedents: 37, tierChangedByPrecedent: [] },
+}
 const unauth = { status: 401, body: { code: 'AUTH_REQUIRED', detail: 'Please sign in to continue.' } }
 
 describe('App', () => {
@@ -25,7 +32,7 @@ describe('App', () => {
         signedIn = true
         return { body: me() }
       },
-      'GET /api/queue': emptyQueue,
+      'GET /api/dashboard': dashboard,
     })
     renderWithProviders(<App />, '/login')
     await userEvent.type(screen.getByLabelText('Username'), 'investigator')
@@ -36,7 +43,7 @@ describe('App', () => {
     await userEvent.clear(screen.getByLabelText('Password'))
     await userEvent.type(screen.getByLabelText('Password'), 'right')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByRole('heading', { name: 'SIU queue' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Executive dashboard' })).toBeInTheDocument()
     expect(m.callsTo('POST', '/api/auth/login')).toHaveLength(2)
   })
 
@@ -47,7 +54,7 @@ describe('App', () => {
       'POST /api/auth/switch-role': (c) => { role = (c.body as { role: 'SUPERVISOR' }).role; return { body: me(role) } },
       'GET /api/queue': emptyQueue,
     })
-    renderWithProviders(<App />, '/')
+    renderWithProviders(<App />, '/queue')
     expect(await screen.findByText(/investigator user \(INVESTIGATOR\)/)).toBeInTheDocument()
     await userEvent.selectOptions(screen.getByLabelText('Demo: act as role'), 'SUPERVISOR')
     expect(await screen.findByText(/supervisor user \(SUPERVISOR\)/)).toBeInTheDocument()
@@ -73,7 +80,7 @@ describe('App', () => {
     expect(screen.getByText(/24 lines have service dates after/)).toBeInTheDocument()
     expect(screen.getByText('POST_DEATH')).toBeInTheDocument()
     expect(screen.getByText('Page 1 of 3 (24 lines)')).toBeInTheDocument()
-    expect(screen.getByText('All data in this system is synthetic.')).toBeInTheDocument()
+    expect(screen.getAllByText('All data in this system is synthetic.').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByRole('button', { name: 'Record decision' })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText(/approved by supervisor/)).toBeInTheDocument())
     expect(screen.getAllByText(/not findings/).length).toBeGreaterThanOrEqual(1)   // shell banner and case header
@@ -102,7 +109,23 @@ describe('App', () => {
       'GET /api/auth/me': me(),
       'GET /api/queue': { ...emptyQueue, items: [queueItem()] },
     })
-    renderWithProviders(<App />, '/')
+    renderWithProviders(<App />, '/queue')
     expect(await screen.findByRole('link', { name: 'CASE-0003' })).toBeInTheDocument()
+  })
+
+  it('first sign-in goes to language selection, which can be skipped', async () => {
+    let onboarded = false
+    const m = mockFetch({
+      'GET /api/auth/me': () => ({ body: { ...me(), onboarded, onboardingSkipped: onboarded } }),
+      'PUT /api/me/prefs': (c) => { onboarded = true; return { body: { ...me(), onboardingSkipped: (c.body as { onboardingSkipped: boolean }).onboardingSkipped, onboarded: false } } },
+      'GET /api/dashboard': dashboard,
+    })
+    renderWithProviders(<App />, '/')
+    expect(await screen.findByRole('heading', { name: /Welcome to ClaimShield Nexus/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(11)
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
+    await waitFor(() => expect(m.callsTo('PUT', '/api/me/prefs')).toHaveLength(1))
+    expect(m.callsTo('PUT', '/api/me/prefs')[0].body).toEqual({ language: 'en', onboarded: false, onboardingSkipped: true })
+    expect(await screen.findByRole('heading', { name: 'Executive dashboard' })).toBeInTheDocument()
   })
 })

@@ -26,19 +26,38 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   await page.getByLabel('Password').fill(password('investigator'))
   await page.getByRole('button', { name: 'Sign in' }).click()
 
-  // the queue: ranked cases from the engine, HIGH first
+  // first sign-in: language selection (real PUT /api/me/prefs); pick Hindi, see the UI change, return to English
+  await expect(page.getByRole('heading', { name: /Welcome to ClaimShield Nexus/ })).toBeVisible()
+  await page.getByRole('radio', { name: /Hindi/ }).click()
+  await expect(page.getByRole('button', { name: 'Skip for now' })).toHaveCount(0)   // the buttons are now in Hindi
+  await page.getByRole('radio', { name: /English/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+
+  // the dashboard is the landing page; open the queue from the sidebar
+  await expect(page.getByRole('heading', { name: 'Executive dashboard' })).toBeVisible()
+  await page.getByRole('link', { name: 'SIU queue' }).first().click()
   await expect(page.getByRole('heading', { name: 'SIU queue' })).toBeVisible()
   const caseLinks = page.getByRole('link', { name: /^CASE-\d{4}$/ })
-  await expect(caseLinks).toHaveCount(8)
+  await expect.poll(() => caseLinks.count()).toBeGreaterThanOrEqual(8)
   await expect(page.getByLabel('HIGH confidence').first()).toBeVisible()
 
   // open the top case: evidence and claim lines are shown
   const caseId = (await caseLinks.first().textContent())!.trim()
   await caseLinks.first().click()
   await expect(page.getByRole('heading', { name: caseId })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Evidence', exact: true })).toBeVisible()
   await expect(page.getByText(/\d+ lines (have|were|duplicate|exceed)|equipment orders/).first()).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Claim lines' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Claim lines', exact: true })).toBeVisible()
+
+  // intelligence views are real, not placeholders: timeline chart, network graph, 30/60/90 outlook, confidence
+  await expect(page.getByRole('heading', { name: 'Timeline', exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Monthly paid and flagged dollars' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Network', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '30, 60 and 90 day outlook' })).toBeVisible()
+  await expect(page.getByLabel('30-day outlook')).toBeVisible()
+  await expect(page.getByLabel('90-day outlook')).toBeVisible()
+  await expect(page.getByText(/ranking score, not calibrated chances/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Confidence', exact: true })).toBeVisible()
 
   // Investigation brief: generate it, see the badge and the seven elements
   await page.getByRole('button', { name: 'Generate investigation brief' }).click()
@@ -61,7 +80,7 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   // the investigator cannot see the audit trail
   await page.getByRole('link', { name: 'Audit' }).click()
   await expect(page.getByText(/available to supervisors, governance and auditors/)).toBeVisible()
-  await page.getByRole('link', { name: 'Queue' }).click()
+  await page.getByRole('link', { name: 'SIU queue' }).first().click()
   await page.getByRole('link', { name: caseId }).click()
 
   // a supervisor approves (two-person rule); the investigator then carries it out
@@ -90,7 +109,7 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   await expect(page.getByText(/Chain verified: \d+ events intact/)).toBeVisible()
 
   // the queue reflects the closed case
-  await page.getByRole('link', { name: 'Queue' }).click()
+  await page.getByRole('link', { name: 'SIU queue' }).first().click()
   await expect(page.getByRole('row', { name: new RegExp(`${caseId}.*CLOSED`) })).toBeVisible()
 })
 
@@ -100,5 +119,5 @@ test('a wrong password is refused with a clear message', async ({ page }) => {
   await page.getByLabel('Password').fill('definitely-not-it')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('alert')).toContainText('incorrect')
-  await expect(page.getByRole('heading', { name: 'SIU queue' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Executive dashboard' })).toHaveCount(0)
 })

@@ -42,7 +42,9 @@ public class BriefTemplate {
     // ---- headline
     String head = primary.get("name").asString();
     if (px.numbers.containsKey(primaryId + ".dollars")) {
-      head += ": {{" + primaryId + ".dollars}} in recorded amounts needs human review";
+      boolean estimated = "ESTIMATED".equals(primary.path("dollarsBasis").asString());
+      head += ": {{" + primaryId + ".dollars}} "
+          + (estimated ? "in estimated exposure" : "in recorded amounts") + " needs human review";
     } else {
       head += ": flagged for human review";
     }
@@ -66,8 +68,12 @@ public class BriefTemplate {
     // ---- 7 supporting case and risk context
     ArrayNode context = mapper.createArrayNode();
     StringBuilder risk = new StringBuilder();
+    boolean mixed = pack.path("numbers").path("S.dollarsEstimated").path("value").asDouble() > 0
+        && px.numbers.containsKey("S.dollarsExact");
     if (px.numbers.containsKey("S.dollars")) {
-      risk.append("Recorded dollars in scope: {{S.dollars}}");
+      risk.append(mixed ? "Dollars in scope: {{S.dollars}} ({{S.dollarsExact}} recorded on claim lines, "
+          + "{{S.dollarsEstimated}} estimated from peer comparison or time assumptions)"
+          : "Recorded dollars in scope: {{S.dollars}}");
       if (px.numbers.containsKey("S.members")) {
         risk.append(" across {{S.members}} members");
       }
@@ -118,18 +124,21 @@ public class BriefTemplate {
     // ---- 3 network context
     ArrayNode network = mapper.createArrayNode();
     for (JsonNode n : pack.get("network")) {
-      String text = n.hasNonNull("statement") ? n.get("statement").asString() : n.path("text").asString();
+      // the template carries {{N#.key}} placeholders, so every number still comes from the registry
+      String text = n.hasNonNull("template") ? n.get("template").asString()
+          : n.hasNonNull("statement") ? n.get("statement").asString() : n.path("text").asString();
       network.add(sentence(text, List.of(n.get("id").asString())));
     }
     if (network.isEmpty()) {
-      network.add(sentence("No network or relationship evidence is available in this build, so network context "
-          + "cannot be assessed.", List.of(limitationAbout(pack, "network"))));
+      network.add(sentence("No network or relationship signal was found for this case within the data this build "
+          + "can see.", List.of(limitationAbout(pack, "network"))));
     }
     out.set("network_notes", network);
 
     ArrayNode precedents = mapper.createArrayNode();
     for (JsonNode n : pack.get("precedents")) {
-      String text = n.hasNonNull("statement") ? n.get("statement").asString() : n.path("text").asString();
+      String text = n.hasNonNull("template") ? n.get("template").asString()
+          : n.hasNonNull("statement") ? n.get("statement").asString() : n.path("text").asString();
       precedents.add(sentence(text, List.of(n.get("id").asString())));
     }
     out.set("precedent_notes", precedents);
@@ -179,8 +188,9 @@ public class BriefTemplate {
     ArrayNode change = mapper.createArrayNode();
     change.add(sentence("Records showing a legitimate, documented reason for the flagged lines would lower concern.",
         List.of(primaryId)));
-    change.add(sentence("Independent signals such as peer comparison, trend or network evidence would raise "
-        + "confidence; they are not available in this build.", List.of(limitationAbout(pack, "not available"))));
+    change.add(sentence("Independent evidence from a channel that is absent today (line rules, peer comparison, "
+        + "change from the provider's own history or network links) would raise confidence.",
+        List.of(limitationAbout(pack, "cannot be assessed"))));
     out.set("what_would_change_my_mind", change);
 
     // ---- 5 limitations (every pack limitation, verbatim)

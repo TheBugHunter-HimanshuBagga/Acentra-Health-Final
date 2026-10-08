@@ -329,7 +329,9 @@ class BriefValidatorTest {
   @Test
   void v6AcceptsEntityIdsListedInThePackAndTheCaseItself() {
     ObjectNode out = valid(pack());
-    setText(out, "summary", 0, "Subject P-0002 and claim C-0000008664 are in scope of " + "CASE-0001.");
+    String claim = pack().get("entities").valueStream().map(JsonNode::asString).filter(x -> x.startsWith("C-"))
+        .findFirst().orElseThrow();
+    setText(out, "summary", 0, "Subject P-0002 and claim " + claim + " are in scope of " + "CASE-0001.");
     assertThat(check(out, pack()).passed()).as(check(out, pack()).checks().toString()).isTrue();
   }
 
@@ -511,20 +513,95 @@ class BriefValidatorTest {
     assertThat(r.checks().get(14).status()).isEqualTo("WARN");
   }
 
+  // ---------------------------------------------------------------------------------------------- M2: peer evidence
+  static ObjectNode packWhere(java.util.function.Predicate<ObjectNode> p) {
+    return PACKS.values().stream().filter(p).findFirst().orElseThrow().deepCopy();
+  }
+
+  static boolean hasPeerEvidence(ObjectNode pk) {
+    return pk.get("evidence").valueStream().anyMatch(e -> "PEER".equals(e.get("channel").asString()));
+  }
+
+  @Test
+  void aCorroboratedCaseSplitsRecordedAndEstimatedDollarsAndStaysValid() {
+    ObjectNode p = packWhere(pk -> hasPeerEvidence(pk) && "HIGH".equals(pk.get("scores").get("tier").asString())
+        && "EXACT".equals(pk.get("evidence").get(0).get("dollarsBasis").asString()));
+    ObjectNode out = valid(p);
+    String context = out.get("case_context").toString();
+    assertThat(context).contains("{{S.dollarsExact}}").contains("{{S.dollarsEstimated}}").contains("estimated");
+    assertThat(out.get("headline").get("text").asString()).contains("recorded amounts");
+    BriefValidator.Result r = check(out, p);
+    assertThat(r.passed()).as(r.checks().stream().filter(BriefValidator.Check::failed).toList().toString()).isTrue();
+    // the peer evidence sentence quotes registry numbers through placeholders, never typed digits
+    assertThat(out.get("summary").toString()).contains("peer median of {{E2.peer}}");
+    assertThat(new BriefRenderer(M).render(out, p).get("markdown").asString()).contains("peer median of")
+        .doesNotContain("{{");
+  }
+
+  @Test
+  void networkFactsAreQuotedThroughPlaceholdersAndStayValid() {
+    ObjectNode p = packWhere(pk -> !pk.get("network").isEmpty());
+    ObjectNode out = valid(p);
+    String notes = out.get("network_notes").toString();
+    assertThat(notes).contains("{{N1.").doesNotContain("No network or relationship signal");
+    BriefValidator.Result r = check(out, p);
+    assertThat(r.passed()).as(r.checks().stream().filter(BriefValidator.Check::failed).toList().toString()).isTrue();
+    assertThat(new BriefRenderer(M).render(out, p).get("markdown").asString()).doesNotContain("{{");
+    // a network number typed by hand is rejected like any other
+    setText(out, "network_notes", 0, "Referrals stay inside the group in 95% of cases.");
+    assertThat(check(out, p).blockerIds()).contains("V5");
+  }
+
+  @Test
+  void aCaseWithoutNetworkSignalsSaysSoAndCitesTheLimitation() {
+    ObjectNode p = packWhere(pk -> pk.get("network").isEmpty());
+    ObjectNode out = valid(p);
+    assertThat(out.get("network_notes").get(0).get("text").asString()).contains("No network or relationship signal");
+    assertThat(out.get("network_notes").get(0).get("evidence_ids").toString()).contains("L2");
+    assertThat(check(out, p).passed()).isTrue();
+  }
+
+  @Test
+  void anEstimatedPrimaryItemIsNeverCalledRecordedAmounts() {
+    ObjectNode p = packWhere(pk -> "ESTIMATED".equals(pk.get("evidence").get(0).get("dollarsBasis").asString()));
+    ObjectNode out = valid(p);
+    assertThat(out.get("headline").get("text").asString()).contains("estimated exposure")
+        .doesNotContain("recorded amounts");
+    assertThat(check(out, p).passed()).isTrue();
+  }
+
+  @Test
+  void typedPeerNumbersAreRejectedLikeAnyOtherNumber() {
+    ObjectNode p = packWhere(pk -> hasPeerEvidence(pk));
+    ObjectNode out = valid(p);
+    setText(out, "summary", 1, "The share of high-level visits is 77% against 33% for peers.");
+    assertThat(check(out, p).blockerIds()).contains("V5");
+  }
+
+  @Test
+  void aPeerStatisticCannotBeQuotedWithoutCitingItsEvidence() {
+    ObjectNode p = packWhere(pk -> hasPeerEvidence(pk));
+    ObjectNode out = valid(p);
+    setText(out, "summary", 0, "The peer median is {{E2.peer}}.");      // E2 is the peer item; the sentence cites E1
+    assertThat(check(out, p).blockerIds()).contains("V4");
+  }
+
   // ---------------------------------------------------------------------------------------------- renderer
   @Test
   void rendererFillsNumbersFromTheRegistryAndKeepsCitations() {
     JsonNode p = pack();
     ObjectNode rendered = new BriefRenderer(M).render(valid(p), p);
     String md = rendered.get("markdown").asString();
-    assertThat(md).contains("$2,232.80").contains("35 lines duplicate").doesNotContain("{{");
+    String dollars = p.get("numbers").get("E1.dollars").get("fmt").get(0).asString();
+    String n = p.get("numbers").get("E1.n").get("fmt").get(0).asString();
+    assertThat(md).contains(dollars).contains(n + " lines duplicate").doesNotContain("{{");
     for (String h : new String[] {"1. Evidence", "2. Timeline", "3. Network context", "4. Confidence",
         "5. Limitations", "6. Recommended human-review action", "7. Supporting case and risk context"}) {
       assertThat(md).contains("## " + h);
     }
     assertThat(md).contains("[E1]").contains("[L1]").contains("[T1]");
-    assertThat(rendered.get("sections")).hasSize(9);   // seven elements + checklist + what would change (no precedents)
-    assertThat(rendered.get("headline").get("text").asString()).contains("$2,232.80");
+    assertThat(rendered.get("sections").size()).isGreaterThanOrEqualTo(9);   // seven elements, checklist, what would change, precedents when cited
+    assertThat(rendered.get("headline").get("text").asString()).contains(dollars);
   }
 
   @Test

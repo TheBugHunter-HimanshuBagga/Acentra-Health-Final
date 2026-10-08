@@ -68,7 +68,11 @@ export interface CaseDetail {
   status: string
   assignedTo: string | null
   outcome: string | null
-  outlook: { available: boolean; reason?: string }
+  outlook: import('@/lib/types2').Outlook
+  channels?: Record<string, number>
+  alertCount?: number
+  firstServiceDt?: string
+  lastServiceDt?: string
   briefAvailable: boolean
 }
 
@@ -81,6 +85,7 @@ export interface EvidenceItem {
   dollars: number
   lineCount: number
   hardFact: boolean
+  dollarsBasis?: 'EXACT' | 'ESTIMATED'
   policyRefs: string[]
 }
 
@@ -147,6 +152,8 @@ export interface AuditEvent {
   eventType: string
   entityType: string | null
   entityId: string | null
+  payload?: Record<string, unknown>
+  prevHash?: string
   hash: string
 }
 

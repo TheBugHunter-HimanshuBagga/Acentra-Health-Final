@@ -32,8 +32,9 @@ class BriefFallbackIT extends GatewayIT {
   @TestConfiguration
   static class ScriptedModel {
     @Bean
+    @org.springframework.context.annotation.Primary
     BriefCandidateSource scripted() {
-      return (caseId, pack, attempt) -> {
+      return (caseId, pack, attempt, hint) -> {
         calls.add(attempt);
         return script.apply(pack, attempt);
       };

@@ -122,7 +122,9 @@ def test_every_published_pack_carries_what_a_brief_must_cite(app_con):
             assert key in p["numbers"], (p["caseId"], key)
         # the validator treats numbers as placeholders owned by an evidence item: every E-key must have its owner
         owners = {k.split(".")[0] for k in p["numbers"]}
-        assert owners <= {e["id"] for e in p["evidence"]} | {"S"}, p["caseId"]
+        known = {e["id"] for e in p["evidence"]} | {n["id"] for n in p["network"]}
+        known |= {x["id"] for x in p["precedents"]} | {"S"}
+        assert owners <= known, p["caseId"]
 
 
 def test_schema_copy_is_not_mutated_by_validation():

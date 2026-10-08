@@ -68,6 +68,15 @@ def consolidate(con: duckdb.DuckDBPyConnection, alerts: list[Alert], hits: list[
         return []
     pair, total, claim_ref = referral_pairs(con)
     uf = _UnionFind(active)
+    # strong links: a shared CONTROL owner, and groups joined by shared infrastructure (G-INFRA)
+    owners = con.execute("""SELECT owner_id, LIST(provider_id ORDER BY provider_id) FROM ownership
+                            WHERE is_control GROUP BY owner_id HAVING COUNT(*) >= 2""").fetchall()
+    groups = [list(members) for _oid, members in owners]
+    groups += [a.detail["group"] for a in alerts if a.rule_id == "G-INFRA" and a.detail]
+    for members in groups:
+        live = [p for p in members if p in uf.parent]
+        for p in live[1:]:
+            uf.union(live[0], p)
     for (referrer, supplier), n in sorted(pair.items()):
         if referrer in uf.parent and supplier in uf.parent:
             if n >= MIN_COUPLED_REFERRALS and n / total[supplier] >= MIN_COUPLED_SHARE:

@@ -50,8 +50,8 @@
                      "examples", "policyRefs"],
         "properties": {
           "id": { "type": "string", "pattern": "^E[0-9]+$" },
-          "type": { "enum": ["rule_hit"] },
-          "detector": { "type": "string", "pattern": "^R-[A-Z]+-[0-9]{2}@v[0-9]+$" },
+          "type": { "enum": ["rule_hit", "peer_stat", "graph_stat", "temporal_stat"] },
+          "detector": { "type": "string", "pattern": "^[RSGT]-[A-Z]+(-[0-9]{2})?@v[0-9]+$" },
           "channel": { "enum": ["LINE", "PEER", "SELF", "NETWORK"] },
           "schemeType": { "type": "string" },
           "name": { "type": "string" },
@@ -60,7 +60,8 @@
           "template": { "type": "string" },
           "statement": { "type": "string" },
           "dollars": { "type": "number" },
-          "lineCount": { "type": "integer", "minimum": 1 },
+          "dollarsBasis": { "enum": ["EXACT", "ESTIMATED"] },
+          "lineCount": { "type": "integer", "minimum": 0 },
           "firstServiceDt": { "type": "string", "format": "date" },
           "lastServiceDt": { "type": "string", "format": "date" },
           "claimRefs": { "type": "array", "items": { "type": "string" } },
@@ -103,8 +104,33 @@
                         "text": { "type": "string" } }
       }
     },
-    "network": { "type": "array" },
-    "precedents": { "type": "array" },
+    "network": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "evidence", "providers", "template", "statement"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^N[0-9]+$" }, "type": { "type": "string" },
+          "evidence": { "type": "string", "pattern": "^E[0-9]+$" },
+          "providers": { "type": "array", "items": { "type": "string" } },
+          "template": { "type": "string" }, "statement": { "type": "string" }
+        }
+      }
+    },
+    "precedents": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "precedentId", "similarity", "disposition", "template", "statement"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^PR[0-9]+$" }, "precedentId": { "type": "string" },
+          "similarity": { "type": "number" },
+          "disposition": { "enum": ["CONFIRMED", "UNFOUNDED", "EDUCATION", "INSUFFICIENT"] },
+          "reasonCode": { "type": ["string", "null"] }, "template": { "type": "string" },
+          "statement": { "type": "string" }
+        }
+      }
+    },
     "policies": {
       "type": "array",
       "items": {

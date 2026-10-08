@@ -1,0 +1,127 @@
+{
+  "app": {
+    "name": "ClaimShield Nexus",
+    "banner": "Synthetic data only. Indicators need human review; they are not findings.",
+    "skip": "Skip to main content"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "queue": "SIU queue",
+    "precedents": "Precedents",
+    "governance": "Rules and exceptions",
+    "audit": "Audit",
+    "library": "Library",
+    "signOut": "Sign out",
+    "language": "Language",
+    "theme": "Theme",
+    "askAssistant": "Ask the assistant"
+  },
+  "onboarding": {
+    "title": "Welcome to ClaimShield Nexus",
+    "subtitle": "Choose the language you want for the interface and the assistant. You can change it later from the top bar.",
+    "continue": "Continue",
+    "skip": "Skip for now",
+    "note": "Case evidence and policy text stay in English so that every figure can be checked; the assistant can answer in your language."
+  },
+  "dashboard": {
+    "title": "Executive dashboard",
+    "subtitle": "What needs a person today, and how the system is learning.",
+    "funnel": "From alerts to reviewed cases",
+    "alerts": "Alerts",
+    "cases": "Cases",
+    "high": "High confidence",
+    "medium": "Medium confidence",
+    "monitor": "Monitor list",
+    "exactDollars": "Exact dollars",
+    "estimatedDollars": "Estimated dollars",
+    "needsYou": "Needs you now",
+    "exposure": "Potential exposure",
+    "compounding": "How knowledge compounds",
+    "empty": "No data in this run yet.",
+    "posture": "Investigation posture",
+    "capacity": "Investigator capacity",
+    "hours": "{{used}} of {{total}} hours planned",
+    "highRisk": "High-confidence cases"
+  },
+  "chat": {
+    "title": "Assistant",
+    "placeholder": "Ask about a case, a policy or how this works",
+    "send": "Send",
+    "mic": "Speak",
+    "stop": "Stop recording",
+    "listening": "Listening",
+    "confirm": "Check what was understood, edit it if needed, then send.",
+    "disclaimer": "Answers use validated platform facts only. The assistant cannot change anything and gives no medical or legal advice.",
+    "grounded": "Grounded in validated case evidence",
+    "context": "Context",
+    "noContext": "Platform-wide"
+  },
+  "common": {
+    "loading": "Loading",
+    "retry": "Try again",
+    "error": "Something went wrong."
+  },
+  "hero": {
+    "eyebrow": "Synthetic data · run {{run}}",
+    "title": "Your SIU Second Brain.",
+    "subtitle": "Turn thousands of unexplained claim alerts into evidence-backed investigations.",
+    "openQueue": "Open the SIU queue",
+    "topCase": "Review the top case",
+    "note": "Every figure comes from the current analysis run on synthetic data. Nothing here is live or external.",
+    "pipeline": "The intelligence pipeline"
+  },
+  "pipe": {
+    "claims": "Claims",
+    "claimsSub": "Synthetic billing history",
+    "signals": "Signals",
+    "signalsSub": "Rule, peer, history and network alerts",
+    "corroboration": "Corroboration",
+    "corroborationSub": "Active alerts after governed exceptions",
+    "evidence": "Evidence",
+    "evidenceSub": "Closed, hashed evidence packs",
+    "case": "SIU case",
+    "caseSub": "Ranked by risk, dollars and effort",
+    "decision": "Human decision",
+    "decisionSub": "Investigator and supervisor",
+    "brain": "Second Brain",
+    "brainSub": "Precedents and governed exceptions"
+  },
+  "loop": {
+    "title": "How every decision becomes institutional memory",
+    "case": "Case",
+    "decision": "Investigator decision",
+    "approval": "Supervisor approval",
+    "precedent": "Precedent",
+    "knowledge": "Governed knowledge",
+    "future": "Future investigations"
+  },
+  "prov": {
+    "fact": "Fact",
+    "signal": "Signal",
+    "corroboration": "Corroboration",
+    "prediction": "Prediction",
+    "human": "Human decision",
+    "legend": "What each label means",
+    "factHelp": "A recorded fact in the claims data",
+    "signalHelp": "A statistical or relationship indicator",
+    "corroborationHelp": "Independent evidence channels agree",
+    "predictionHelp": "A model estimate; never proof",
+    "humanHelp": "Decided and recorded by a person"
+  },
+  "outlook": {
+    "disclaimer": "Prioritization signal — not proof of future misconduct.",
+    "days": "{{n}} days",
+    "ranking": "ranking score"
+  },
+  "queue": {
+    "search": "Search cases, providers, patterns",
+    "noMatch": "No case matches this search.",
+    "why": "Why it ranks here",
+    "open": "Open workspace"
+  },
+  "audit": {
+    "chain": "Hash chain",
+    "verified": "Verified",
+    "prev": "links to"
+  }
+}

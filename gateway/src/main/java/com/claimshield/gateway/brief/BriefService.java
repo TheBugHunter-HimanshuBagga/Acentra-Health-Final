@@ -85,12 +85,18 @@ public class BriefService {
     int retries = 0;
     List<Map<String, Object>> rejected = new ArrayList<>();
     BriefCandidateSource source = llm.getIfAvailable();
+    if (source != null && !source.available()) {
+      source = null;                     // no model configured or healthy: the template is the normal path
+    }
+    String hint = null;
+    List<Map<String, Object>> llmCalls = new ArrayList<>();
     for (int attempt = 1; source != null && attempt <= 2 && chosen == null; attempt++) {
-      Optional<BriefCandidateSource.Candidate> c = source.generate(caseId, pack, attempt);
+      Optional<BriefCandidateSource.Candidate> c = source.generate(caseId, pack, attempt, hint);
       if (c.isEmpty()) {
         fallbackReason = "model unavailable";
         break;
       }
+      llmCalls.add(call(attempt, c.get()));
       BriefValidator.Result r = validator.validate(c.get().output(), pack, c.get().stopReason());
       retries = attempt - 1;
       if (r.passed()) {
@@ -99,6 +105,7 @@ public class BriefService {
         chosenResult = r;
       } else {
         fallbackReason = "validation failed: " + String.join(",", r.blockerIds());
+        hint = String.join(", ", r.blockerIds());
         rejected.add(rejection(attempt, r));
       }
     }
@@ -126,12 +133,14 @@ public class BriefService {
     validation.put("badge", badge);
     validation.put("checks", checksOf(chosenResult));
     validation.put("rejectedAttempts", rejected);
+    validation.put("llmCalls", llmCalls);
 
     final String fMode = mode;
     final String fBadge = badge;
     final BriefCandidateSource.Candidate fUsed = used;
     final ObjectNode fChosen = chosen;
     final String fReason = fallbackReason;
+    final List<Map<String, Object>> fCalls = llmCalls;
     return tx.write(() -> {
       Optional<Map<String, Object>> again = find(caseId, sha);   // lost a race: return the stored one
       if (again.isPresent()) {
@@ -151,6 +160,9 @@ public class BriefService {
       payload.put("badge", fBadge);
       payload.put("packSha256", sha);
       payload.put("fallbackReason", fReason);
+      for (Map<String, Object> c : fCalls) {
+        audit.append(u.username(), u.role().name(), "LLM_CALL", "CASE", caseId, c);
+      }
       audit.append(u.username(), u.role().name(), "BRIEF_GENERATED", "CASE", caseId, payload);
       return find(caseId, sha).orElseThrow();
     });
@@ -182,6 +194,18 @@ public class BriefService {
    * strings quote the offending text (a fabricated amount, a forbidden word), so they are deliberately NOT stored
    * or returned: a rejected brief's content must not reach a user through the diagnostics either.
    */
+  private static Map<String, Object> call(int attempt, BriefCandidateSource.Candidate c) {
+    Map<String, Object> m = new LinkedHashMap<>();
+    m.put("purpose", "BRIEF");
+    m.put("attempt", attempt);
+    m.put("model", c.model());
+    m.put("stopReason", c.stopReason());
+    m.put("promptSha256", c.promptSha256());
+    m.put("responseSha256", c.responseSha256());
+    m.put("latencyMs", c.latencyMs());
+    return m;
+  }
+
   private static Map<String, Object> rejection(int attempt, BriefValidator.Result r) {
     Map<String, Object> m = new LinkedHashMap<>();
     m.put("attempt", attempt);

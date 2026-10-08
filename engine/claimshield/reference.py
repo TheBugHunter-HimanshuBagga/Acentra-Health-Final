@@ -81,13 +81,31 @@ PEER_MIN_PEERS = 5              # a peer group smaller than this gives no signal
 PEER_Z_ALERT = 3.0              # robust z needed to alert
 PEER_SHRINK_K = 10.0            # shrinkage of a provider rate toward the peer median: n / (n + k)
 PEER_WINDOW_MONTHS = 6          # months of the data window that are evaluated (the most recent)
-PEER_MIN_EM = 30                # S-UPC: office E&M lines in the trailing 3 months
+PEER_MIN_EM = 20                # S-UPC: office E&M lines in the trailing 3 months
 PEER_MIN_MEMBERS = 8            # S-UTL / S-GHOST / S-DIST: distinct members
 UPC_MIN_GAP = 0.15              # S-UPC: also needs this absolute gap in level 4-5 share over the peer median
 UTL_MIN_RATIO = 1.5             # S-UTL: lines per member must also be this multiple of the peer median
 GHOST_MIN_SHARE = 0.25          # S-GHOST: minimum exclusive-member share
-DIST_MIN_KM = 60.0              # S-DIST: minimum mean member distance
+DIST_MIN_KM = 100.0             # S-DIST: minimum mean member distance
 GHOST_LOOKBACK_MONTHS = 12
+# ---- graph (channel NETWORK) and temporal (channel SELF) thresholds
+REFCONC_MIN_PEERS = 4          # G-REFCONC: peers needed (a specialty may have few referral-fed members)
+GRAPH_WINDOW_MONTHS = 6         # referral statistics window for owner groups and loops
+GRAPH_REFCONC_MONTHS = 12       # referral concentration needs more orders to be meaningful
+OWNREF_MIN_SHARE = 0.5
+OWNREF_MIN_REFERRALS = 30
+REFCONC_MIN_SHARE = 0.8
+REFCONC_MIN_REFERRALS = 30
+LOOP_MIN_EDGE_REFERRALS = 5
+LOOP_MAX_GROUP = 25
+INFRA_LINK_WEIGHT = {"owner": 0.5, "phone": 0.3, "address": 0.2, "facility": 0.2}
+INFRA_CAP = 0.4
+CUSUM_K = 0.5
+CUSUM_H = 5.0
+CUSUM_BASE_MONTHS = 6
+GROWTH_Z_ALERT = 3.0
+RAMP_TENURE_MONTHS = 12
+PEER_MIN_MONTHS = 2             # a peer pattern must show in this many evaluated months (a pattern, not a blip)
 DOLLAR_MIN_HARD_FACT = 100.0   # d_min for the "hard fact alone => HIGH" tier rule
 
 # ---- scheme / rule vocabulary ---------------------------------------------------------------------------
@@ -112,12 +130,30 @@ RULES = {
     "S-UTL": ("UTL", "More lines per member than peers", 0.6, "POL-UTIL-7.1", False, "REQUEST_RECORDS"),
     "S-GHOST": ("PHC", "Members who see no other provider", 0.6, "POL-ELIG-3.3", False, "REQUEST_RECORDS"),
     "S-DIST": ("DIS", "Members travel further than for peers", 0.5, "POL-UTIL-7.2", False, "MONITOR"),
+    # NETWORK channel (graph analytics)
+    "G-OWNREF": ("RNG", "Patients referred inside one owner group", 0.7, "POL-NET-8.1", False, "REQUEST_RECORDS"),
+    "G-LOOP": ("RNG", "Closed loops of referrals between providers", 0.6, "POL-NET-8.1", False, "REQUEST_RECORDS"),
+    "G-REFCONC": ("RFC", "Referrals concentrated in a few referrers", 0.6, "POL-NET-8.2", False,
+                  "REQUEST_RECORDS"),
+    "G-INFRA": ("INF", "Providers that share infrastructure", 0.4, "POL-NET-8.3", False, "MONITOR"),
+    # SELF channel (a provider against its own history)
+    "T-CUSUM": ("TRD", "A sustained change from the provider's own history", 0.5, "POL-TEMP-9.1", False,
+                "REQUEST_RECORDS"),
+    "T-GROWTH": ("GRW", "Billing growing much faster than peers", 0.5, "POL-TEMP-9.1", False, "REQUEST_RECORDS"),
+    "T-RAMP": ("RMP", "A new provider already billing like an established one", 0.5, "POL-TEMP-9.2", False,
+               "REQUEST_RECORDS"),
 }
 # rules whose dollars are inferred, not read from the claim lines
-ESTIMATED_RULES = {"R-TIME-01", "S-UPC", "S-UTL", "S-GHOST", "S-DIST"}
 PEER_RULES = {"S-UPC", "S-UTL", "S-GHOST", "S-DIST"}
-SQL_RULES = [r for r in RULES if r not in PEER_RULES]
-CHANNEL_OF = {r: ("PEER" if r in PEER_RULES else "LINE") for r in RULES}
+GRAPH_RULES = {"G-OWNREF", "G-LOOP", "G-REFCONC", "G-INFRA"}
+TEMPORAL_RULES = {"T-CUSUM", "T-GROWTH", "T-RAMP"}
+ESTIMATED_RULES = {"R-TIME-01"} | PEER_RULES | GRAPH_RULES | TEMPORAL_RULES
+# detectors that raise an alert without claim lines (the evidence is a statistic about the provider or the group)
+ALERT_ONLY_RULES = {"G-INFRA"} | TEMPORAL_RULES
+SQL_RULES = ["R-DUP-01", "R-PTP-01", "R-MUE-01", "R-DOD-01", "R-EXCL-01", "R-DME-01", "R-TIME-01", "R-GEO-01",
+             "R-IP-01"]
+CHANNEL_OF = {r: ("PEER" if r in PEER_RULES else "NETWORK" if r in GRAPH_RULES else "SELF" if r in TEMPORAL_RULES
+                  else "LINE") for r in RULES}
 RULE_VERSION = 1
 HARD_FACT_RULES = {r for r, v in RULES.items() if v[4]}
 
@@ -127,6 +163,8 @@ SCHEME_WEIGHTS = {
     "UNB": (0.55, 0.30), "DUP": (0.50, 0.30), "EXU": (0.50, 0.30),
     "PHB": (0.85, 0.80), "PHC": (0.90, 0.70), "TMA": (0.60, 0.40), "TMB": (0.75, 0.50),
     "UPC": (0.55, 0.45), "UTL": (0.50, 0.50), "DIS": (0.30, 0.20),
+    "RNG": (0.90, 0.60), "RFC": (0.60, 0.40), "INF": (0.30, 0.20), "TRD": (0.40, 0.30), "GRW": (0.40, 0.30),
+    "RMP": (0.50, 0.40),
 }
 
 HYPOTHESIS_TEXT = {
@@ -143,6 +181,12 @@ HYPOTHESIS_TEXT = {
     "UTL": "More services per member than peers with a similar practice",
     "PHC": "Services for members who show no other care in the prior year",
     "DIS": "Members travel unusually far to reach the provider",
+    "RNG": "Providers under one owner refer patients to each other",
+    "RFC": "Referrals come from very few referring providers",
+    "INF": "Providers share an owner, a phone number or a building",
+    "TRD": "The provider's own billing pattern changed and stayed changed",
+    "GRW": "Billed dollars grew far faster than for peers",
+    "RMP": "A newly enrolled provider bills like an established one",
 }
 
 # rule evidence statement templates: placeholders {{E<n>.key}} are filled from the numbers registry
@@ -158,8 +202,18 @@ RULE_TEMPLATE = {
                  "minutes",
     "R-GEO-01": "{{EV.n}} lines were billed for a member who was billed more than {{EV.km}} km away on the same date",
     "R-IP-01": "{{EV.n}} office or home services fall between the admission and discharge dates of an inpatient stay",
-    "S-UPC": "The share of high-level office visits (levels four and five) is {{EV.share}} against a peer median of {{EV.peer}} "
+    "S-UPC": "The share of high-level office visits (levels four and five) is {{EV.share}} against a peer median of "
+             "{{EV.peer}} "
              "({{EV.peers}} peers); members' mean acuity is {{EV.acuity}} against {{EV.peerAcuity}}",
+    "G-OWNREF": "{{EV.share}} of the referral dollars from this owner group stay inside it ({{EV.referrals}} "
+                "referrals among {{EV.members}} providers)",
+    "G-LOOP": "{{EV.cycles}} closed referral loops of at most {{EV.length}} providers under one owner",
+    "G-REFCONC": "{{EV.share}} of the referrals come from {{EV.referrers}} referring providers (peer median "
+                 "{{EV.peer}}, {{EV.peers}} peers)",
+    "G-INFRA": "{{EV.members}} providers share infrastructure: {{LINKS}}",
+    "T-CUSUM": "{{METRIC}} moved from {{EV.from}} to {{EV.to}} and stayed there for {{EV.months}} months",
+    "T-GROWTH": "Billed dollars are {{EV.ratio}} the level of the previous ninety days (peer median {{EV.peer}})",
+    "T-RAMP": "Enrolled {{EV.tenure}} months ago and already billing {{EV.ratio}} the volume of established peers",
     "S-UTL": "{{EV.lpm}} lines per member per month against a peer median of {{EV.peer}} ({{EV.peers}} peers)",
     "S-GHOST": "{{EV.share}} of this provider's members had no claim from any other provider in the prior "
                "{{EV.months}} months (peer median {{EV.peer}}, {{EV.peers}} peers)",
@@ -200,6 +254,18 @@ POLICY_SECTIONS = [
      "Services per member that are far above comparable providers are reviewed for medical need."),
     ("POL-UTIL-7.2", "POL-UTIL", "Member travel",
      "Members who travel unusually far for routine services are reviewed to confirm access and need."),
+    ("POL-NET-8.1", "POL-NET", "Common ownership and referrals",
+     "Providers under one controlling owner that send most of their referrals to each other are reviewed for "
+     "steering of patients."),
+    ("POL-NET-8.2", "POL-NET", "Concentrated referral sources",
+     "A provider that receives nearly all its referrals from a few sources is reviewed for the relationship."),
+    ("POL-NET-8.3", "POL-NET", "Shared infrastructure",
+     "Providers that share an owner, a phone number or a building are reviewed together; sharing a building alone "
+     "is not a finding."),
+    ("POL-TEMP-9.1", "POL-TEMP", "Changes in billing pattern",
+     "A lasting change in a provider\'s own billing pattern, or growth far above peers, is reviewed."),
+    ("POL-TEMP-9.2", "POL-TEMP", "New providers",
+     "A newly enrolled provider billing at the volume of established providers is reviewed."),
     ("DME-POL-4.2", "DME-POL", "Equipment orders",
      "Equipment orders require a qualifying visit between the member and the ordering provider within the "
      f"{DME_VISIT_WINDOW_DAYS} days before the order."),
@@ -215,6 +281,10 @@ GLOSSARY = [
      "billing"),
     ("GL-PEER", "Peer comparison", "A statistical comparison with providers of the same specialty. It shows an unusual "
      "pattern, not a cause; legitimate practices can look unusual.", "platform"),
+    ("GL-NET", "Network signal", "A relationship between providers (shared owner, referrals, location). It points "
+     "to a group to review together; it does not show wrongdoing.", "platform"),
+    ("GL-SELF", "Change from own history", "A comparison of a provider with its own earlier months, so it does not "
+     "depend on how comparable the peers are.", "platform"),
     ("GL-TIME", "Typical service time", "Minutes assumed for a code in this demo (our own assumption, not published "
      "CMS data).", "platform"),
     ("GL-QV", "Qualifying visit", "A visit between member and ordering provider that supports an equipment order.",
@@ -240,3 +310,32 @@ def permitted_actions(tier: str) -> list[dict]:
             {"action": "REFER_EXTERNAL", "needs": "SUPERVISOR"},
         ]
     return base
+
+
+# short platform help articles (served by the knowledge screen and used by the assistant)
+HELP = [
+    ("HLP-001", "How cases are ranked",
+     "Cases are ranked by a transparent utility that combines risk, dollars, member impact, severity and evidence "
+     "strength, then filled into investigator capacity from the top. Every factor is shown as its own column."),
+    ("HLP-002", "What the confidence tiers mean",
+     "HIGH means independent evidence agrees or a recorded fact stands alone. MEDIUM means expert review is "
+     "justified. LOW items are not cases; they sit on the Monitor list with what would raise confidence."),
+    ("HLP-003", "How to review a case",
+     "Open the case, read the evidence and the brief, then Accept, Modify or Reject the suggested action. Modify "
+     "and Reject need a reason code. Nothing is applied until a person decides."),
+    ("HLP-004", "How to approve a high-impact action",
+     "Prepayment review flags and external referrals need a supervisor who is not the person who proposed them."),
+    ("HLP-005", "What a precedent is",
+     "A precedent is a closed case turned into knowledge. It becomes active only after a second person co-signs "
+     "it, and then it informs the evidence strength of similar future cases."),
+    ("HLP-006", "What an exception rule is",
+     "An exception moves a repeated false alarm from the review queue to the Monitor list. It is drafted from a "
+     "rejected case, simulated, and approved by someone other than its proposer. It can never touch a recorded "
+     "fact such as a duplicate, a service after death or an excluded provider."),
+    ("HLP-007", "What the Monitor list is",
+     "Items with too little independent evidence to open a case, plus items an approved exception downgraded. "
+     "Each one says what would raise confidence."),
+    ("HLP-008", "What estimated dollars mean",
+     "Exact dollars are read from flagged claim lines. Estimated dollars are inferred from comparisons with peers "
+     "or from time assumptions and are never shown as recoverable amounts."),
+]

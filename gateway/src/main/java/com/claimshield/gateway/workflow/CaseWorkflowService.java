@@ -45,7 +45,7 @@ public class CaseWorkflowService {
       "LEGIT_RURAL_ACCESS", "LEGIT_HIGH_ACUITY");
   static final Set<String> REVIEWABLE = Set.of("NEW", "TRIAGED", "IN_REVIEW", "NEED_INFO");
   static final Set<String> CLOSABLE = Set.of("IN_REVIEW", "ACTION_TAKEN");
-  static final int MIN_RATIONALE = 40;
+  public static final int MIN_RATIONALE = 40;
 
   private final JdbcTemplate jdbc;
   private final ServingRepository serving;

@@ -50,3 +50,13 @@ export function useAuthActions() {
     },
   }
 }
+
+/** Saves language / onboarding choices on the server and adopts the returned profile. */
+export function useSavePrefs() {
+  const qc = useQueryClient()
+  return async (prefs: { language?: string; onboarded?: boolean; onboardingSkipped?: boolean }) => {
+    const me = await api<Me>('/api/me/prefs', { method: 'PUT', body: prefs })
+    qc.setQueryData(['me'], me)
+    return me
+  }
+}

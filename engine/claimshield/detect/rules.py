@@ -52,6 +52,9 @@ def run_all_rules(con: duckdb.DuckDBPyConnection, store: bool = True, peer: bool
         from claimshield.detect.peer import run_peer_signals
 
         frames.append(run_peer_signals(con))
+        from claimshield.graph.graph import run_graph_signals
+
+        frames.append(run_graph_signals(con)[0])
     hits = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=HIT_COLUMNS)
     hits = hits.sort_values(["rule_id", "claim_id", "line_no"]).reset_index(drop=True)
     if store:

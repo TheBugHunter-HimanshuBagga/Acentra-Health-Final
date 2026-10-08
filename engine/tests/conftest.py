@@ -30,3 +30,18 @@ def claims_con(m1):
     con = duckdb.connect(str(m1["paths"]["claims"]), read_only=True)
     yield con
     con.close()
+
+
+@pytest.fixture(scope="session")
+def ws(m1, tmp_path_factory):
+    """A shared analysis workspace over a COPY of the generated data (DuckDB cannot mix read-only and read-write
+    connections to one file, and the other fixtures open the original read-only)."""
+    import shutil
+
+    from claimshield import analysis
+    d = tmp_path_factory.mktemp("ws")
+    for name in ("claims", "gt"):
+        shutil.copy(m1["paths"][name], d / f"{name}.duckdb")
+    w = analysis.load_workspace(d / "claims.duckdb", d / "gt.duckdb")
+    yield w
+    w.close()

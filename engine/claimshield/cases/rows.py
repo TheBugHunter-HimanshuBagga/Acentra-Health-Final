@@ -7,10 +7,17 @@ from collections import Counter, defaultdict
 
 from claimshield import reference as ref
 from claimshield.cases.score import ScoredCase, pack_first_fit
+from claimshield.cases.views import ViewData, build_graph, build_timeline
 from claimshield.evidence.pack import PackContext, build_pack, canonical_json
 
 MAX_LINES_PER_CASE = 500
 DEFAULT_CAPACITY_HOURS = 240.0
+
+
+def basis_of(sc: ScoredCase) -> str:
+    if sc.dollars_est <= 0:
+        return "EXACT"
+    return "ESTIMATED" if sc.dollars_exact <= 0 else "MIXED"
 
 
 def _j(obj) -> str:
@@ -18,8 +25,10 @@ def _j(obj) -> str:
 
 
 def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: dict[tuple[str, int], int],
-               hit_meta: dict[tuple[str, int], dict], capacity_hours: float = DEFAULT_CAPACITY_HOURS) -> dict:
-    cases, packs, lines, monitors = [], [], [], []
+               hit_meta: dict[tuple[str, int], dict], capacity_hours: float = DEFAULT_CAPACITY_HOURS,
+               view_data: ViewData | None = None, suppressed: list[dict] | None = None) -> dict:
+    cases, packs, lines, monitors, graphs, timelines, case_prec = [], [], [], [], [], [], []
+    vd = view_data or ViewData()
     queue_items = [(s.draft.case_id, s.utility, s.est_hours) for s in scored if s.tier != "LOW"]
     in_cap = pack_first_fit(queue_items, capacity_hours)
     mon_n = 0
@@ -30,16 +39,24 @@ def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: d
             monitors.append({
                 "run_id": run_id, "monitor_id": f"MON-{mon_n:04d}", "provider_id": d.primary,
                 "reasons_json": _j({"tierReasons": sc.tier_reasons, "hypotheses": sc.hypotheses,
-                                    "dollarsExact": sc.dollars_exact, "caseId": d.case_id}),
+                                    "dollarsExact": sc.dollars_exact, "dollarsEstimated": sc.dollars_est,
+                                    "caseId": d.case_id}),
                 "raise_json": _j(sc.raise_conf)})
             continue
+        for m in sc.matches:
+            case_prec.append({"run_id": run_id, "case_id": d.case_id, "precedent_id": m.precedent.precedent_id,
+                              "similarity": round(m.similarity, 4), "disposition": m.precedent.disposition,
+                              "reason_code": m.precedent.reason_code, "compare_json": _j(m.compare)})
         pack = build_pack(sc, ctx)
         packs.append({"run_id": run_id, "case_id": d.case_id, "pack_json": canonical_json(pack),
                       "pack_sha256": pack["packSha256"]})
+        graphs.append({"run_id": run_id, "case_id": d.case_id, "graph_json": _j(build_graph(sc, vd, hit_meta))})
+        timelines.append({"run_id": run_id, "case_id": d.case_id,
+                          "timeline_json": _j(build_timeline(sc, vd, hit_meta))})
         rule_to_eid = {e["detector"].split("@")[0]: e["id"] for e in pack["evidence"]}
         top = sorted(sc.line_dollars, key=lambda k: (-sc.line_dollars[k], k))[:MAX_LINES_PER_CASE]
         for key in top:
-            m = hit_meta[key]
+            m = hit_meta[(key[0], key[1], sc.line_rule[key])]
             lines.append({
                 "run_id": run_id, "case_id": d.case_id, "evidence_id": rule_to_eid[sc.line_rule[key]],
                 "claim_id": key[0], "line_no": key[1], "member_id": m["member_id"], "provider_id": m["provider_id"],
@@ -55,27 +72,39 @@ def build_rows(run_id: str, scored: list[ScoredCase], ctx: PackContext, units: d
             "factors": {"risk": round(sc.risk, 4), "dollarScore": round(sc.dollar_score, 4),
                         "memberImpact": round(sc.member_impact, 4), "severity": round(sc.severity, 4),
                         "evidenceStrength": round(sc.evidence_strength, 4)},
-            "dollars": {"exact": sc.dollars_exact, "estimated": 0.0, "basis": "EXACT"},
-            "trend": sc.trend, "estHours": sc.est_hours, "memberCount": len(sc.members),
+            "dollars": {"exact": sc.dollars_exact, "estimated": sc.dollars_est, "basis": basis_of(sc)},
+            "trend": sc.trend, "trendSlope": sc.trend_slope, "estHours": sc.est_hours, "memberCount": len(sc.members),
             "ruleIds": sorted({a.rule_id for a in d.alerts}),
             "hardFactAlerts": sc.hard_fact, "alertCount": len(d.alerts),
             "firstServiceDt": sc.first_service.isoformat(), "lastServiceDt": sc.last_service.isoformat(),
-            "outlook": {"available": False, "reason": "30/60/90-day prediction is not part of this build"},
+            "outlook": sc.outlook,
             "defaultAction": pack["defaultAction"], "permittedActions": pack["permittedActions"],
             "packSha256": pack["packSha256"], "runId": run_id,
         }
         cases.append({
             "run_id": run_id, "case_id": d.case_id, "primary_provider_id": d.primary,
             "specialty_code": ctx.provider_info[d.primary]["specialty_code"], "tier": sc.tier,
-            "risk_30": sc.risk, "risk_60": sc.risk, "risk_90": sc.risk,
-            "utility_30": sc.utility, "utility_60": sc.utility, "utility_90": sc.utility,
-            "dollars_exact": sc.dollars_exact, "dollars_est": 0.0, "dollars_basis": "EXACT",
+            "risk_30": sc.risk_h[30], "risk_60": sc.risk_h[60], "risk_90": sc.risk_h[90],
+            "utility_30": sc.utility_h[30], "utility_60": sc.utility_h[60], "utility_90": sc.utility_h[90],
+            "dollars_exact": sc.dollars_exact, "dollars_est": sc.dollars_est, "dollars_basis": basis_of(sc),
             "member_impact": sc.member_impact, "severity": sc.severity, "evidence_strength": sc.evidence_strength,
             "precedent_fit": sc.precedent_fit, "est_hours": sc.est_hours, "trend": sc.trend,
             "hypotheses_json": _j([h["code"] for h in sc.hypotheses]), "subjects_json": _j(subjects),
             "channels_json": _j(sc.channels), "tier_reasons_json": _j(header["tierReasons"]),
-            "header_json": _j(header), "fv_json": _j({"version": "fv_v1", "vector": [round(x, 6) for x in sc.fv]})})
-    return {"cases": cases, "packs": packs, "lines": lines, "monitors": monitors, "in_capacity": in_cap}
+            "header_json": _j(header),
+            "fv_json": _j({"version": "fv_v1", "names": sc.fv_names, "vector": [round(x, 6) for x in sc.fv]})})
+    # providers whose alerts a governed exception removed from the queue stay visible as Monitor items
+    for sp in sorted(suppressed or [], key=lambda x: (x["excId"], x["provider"])):
+        mon_n += 1
+        monitors.append({
+            "run_id": run_id, "monitor_id": f"MON-{mon_n:04d}", "provider_id": sp["provider"],
+            "reasons_json": _j({"tierReasons": [f"Downgraded to Monitor by the approved exception {sp['excId']}"],
+                                "hypotheses": sp["hypotheses"], "dollarsExact": 0.0,
+                                "dollarsEstimated": sp["dollars"], "caseId": None, "exceptionId": sp["excId"],
+                                "alerts": sp["alerts"]}),
+            "raise_json": _j(["Retire the exception, or a finding that the provider is outside its conditions"])})
+    return {"cases": cases, "packs": packs, "lines": lines, "monitors": monitors, "in_capacity": in_cap,
+            "graphs": graphs, "timelines": timelines, "case_precedents": case_prec}
 
 
 def build_funnel(run_id: str, n_alerts: int, n_active: int, scored: list[ScoredCase], in_cap: dict[str, bool],
@@ -91,7 +120,8 @@ def build_funnel(run_id: str, n_alerts: int, n_active: int, scored: list[ScoredC
             {"key": "inCapacity", "label": "In capacity", "count": sum(1 for v in in_cap.values() if v)},
         ],
         "tiers": {"HIGH": tiers["HIGH"], "MEDIUM": tiers["MEDIUM"], "MONITOR": tiers["LOW"]},
-        "dollars": {"exact": round(sum(s.dollars_exact for s in scored if s.tier != "LOW"), 2), "estimated": 0.0},
+        "dollars": {"exact": round(sum(s.dollars_exact for s in scored if s.tier != "LOW"), 2),
+                    "estimated": round(sum(s.dollars_est for s in scored if s.tier != "LOW"), 2)},
         "coverage": coverage, "capacityHours": DEFAULT_CAPACITY_HOURS, "diffFrom": None,
     }
 
@@ -102,18 +132,20 @@ def build_dashboard(run_id: str, scored: list[ScoredCase], funnel: dict) -> dict
         if s.tier == "LOW":
             continue
         top = s.hypotheses[0]["code"]
-        by_scheme[top]["dollars"] += s.dollars_exact
+        by_scheme[top]["dollars"] += s.dollars_exact + s.dollars_est
         by_scheme[top]["cases"] += 1
     needs = sorted([s for s in scored if s.tier != "LOW"], key=lambda s: (-s.utility, s.draft.case_id))[:5]
     return {
         "runId": run_id,
         "kpis": {"alerts": funnel["stages"][0]["count"], "cases": funnel["stages"][2]["count"],
                  "high": funnel["tiers"]["HIGH"], "medium": funnel["tiers"]["MEDIUM"],
-                 "monitor": funnel["tiers"]["MONITOR"], "exactDollars": funnel["dollars"]["exact"]},
+                 "monitor": funnel["tiers"]["MONITOR"], "exactDollars": funnel["dollars"]["exact"],
+                 "estimatedDollars": funnel["dollars"]["estimated"]},
         "exposureByScheme": [{"scheme": k, "label": ref.HYPOTHESIS_TEXT[k], "dollars": round(v["dollars"], 2),
                               "cases": v["cases"]} for k, v in sorted(by_scheme.items())],
         "needsYouNow": [{"caseId": s.draft.case_id, "tier": s.tier, "primary": s.draft.primary,
-                         "hypotheses": [h["code"] for h in s.hypotheses], "dollars": s.dollars_exact}
+                         "hypotheses": [h["code"] for h in s.hypotheses],
+                         "dollars": round(s.dollars_exact + s.dollars_est, 2)}
                         for s in needs],
     }
 

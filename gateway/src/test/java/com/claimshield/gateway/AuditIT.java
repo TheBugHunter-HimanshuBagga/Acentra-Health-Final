@@ -80,7 +80,7 @@ class AuditIT extends GatewayIT {
   @Test
   void concurrentDecisionsNeverForkTheChain() throws Exception {
     List<String> ids = allCaseIds();
-    assertThat(ids).hasSize(8);
+    assertThat(ids).hasSizeGreaterThanOrEqualTo(8);
     long reviewsBefore = auditCount("REVIEW_ACTION");
     ExecutorService pool = Executors.newFixedThreadPool(8);
     try {
@@ -97,7 +97,7 @@ class AuditIT extends GatewayIT {
     } finally {
       pool.shutdown();
     }
-    assertThat(auditCount("REVIEW_ACTION") - reviewsBefore).isEqualTo(8);
+    assertThat(auditCount("REVIEW_ACTION") - reviewsBefore).isEqualTo(ids.size());
     JsonNode v = get("auditor", "/api/audit/verify");
     assertThat(v.get("ok").asBoolean()).as("hash chain intact after concurrent writers").isTrue();
     assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT prev_hash) FROM wf_audit_event", Long.class))

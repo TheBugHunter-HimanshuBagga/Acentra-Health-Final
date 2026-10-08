@@ -120,6 +120,10 @@ public class AuthController {
     }
     AppUser target = users.findFirstByRole(role).orElseThrow(() -> ApiException.notFound("A user with that role"))
         .user();
+    // the same person is demonstrating both roles: their language and onboarding choice carry over
+    Map<String, Object> mine = users.profile(current);
+    users.updatePrefs(target.id(), (String) mine.get("language"), Boolean.TRUE.equals(mine.get("onboarded")),
+        Boolean.TRUE.equals(mine.get("onboardingSkipped")));
     establish(target, req, res);
     tx.write(() -> audit.append(current.username(), current.role().name(), "AUTH_SWITCH_ROLE", "user", target.id(),
         Map.of("from", current.role().name(), "to", target.role().name())));

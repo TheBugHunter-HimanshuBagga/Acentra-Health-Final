@@ -27,15 +27,17 @@ function csrfToken(): string | null {
 }
 
 export interface ApiOptions {
-  method?: 'GET' | 'POST' | 'PUT'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
+  /** multipart form (voice); the browser sets the boundary, so no Content-Type is written */
+  form?: FormData
   idempotencyKey?: string
 }
 
 export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   const method = opts.method ?? 'GET'
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (opts.body !== undefined && !opts.form) headers['Content-Type'] = 'application/json'
   if (method !== 'GET') {
     const token = csrfToken()
     if (token) headers['X-XSRF-TOKEN'] = token
@@ -46,7 +48,7 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
     method,
     headers,
     credentials: 'same-origin',
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    body: opts.form ?? (opts.body === undefined ? undefined : JSON.stringify(opts.body)),
   })
   if (res.status === 204) return undefined as T
   const text = await res.text()

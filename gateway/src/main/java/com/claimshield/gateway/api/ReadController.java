@@ -24,8 +24,16 @@ public class ReadController {
   private final QueueService queue;
   private final JdbcTemplate jdbc;
   private final Json json;
+  private final com.claimshield.gateway.engine.EngineClient engine;
+  private final com.claimshield.gateway.ai.LlmClient llm;
+  private final com.claimshield.gateway.ai.SpeechService speech;
 
-  public ReadController(ServingRepository serving, QueueService queue, JdbcTemplate jdbc, Json json) {
+  public ReadController(ServingRepository serving, QueueService queue, JdbcTemplate jdbc, Json json,
+      com.claimshield.gateway.engine.EngineClient engine, com.claimshield.gateway.ai.LlmClient llm,
+      com.claimshield.gateway.ai.SpeechService speech) {
+    this.engine = engine;
+    this.llm = llm;
+    this.speech = speech;
     this.serving = serving;
     this.queue = queue;
     this.jdbc = jdbc;
@@ -41,9 +49,9 @@ public class ReadController {
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("status", "UP");
     out.put("run", serving.currentRunId().orElse(null));
-    out.put("engine", "NOT_CONFIGURED");     // the engine link arrives with the re-run feature
-    out.put("llm", "TEMPLATE");
-    out.put("voice", "OFF");
+    out.put("engine", engine.healthy() ? "UP" : "DOWN");   // stored results keep working when it is down
+    out.put("llm", llm.status());
+    out.put("voice", speech.status());
     return out;
   }
 
@@ -121,6 +129,20 @@ public class ReadController {
   @GetMapping("/cases/{caseId}/evidence")
   public ResponseEntity<String> evidence(@PathVariable String caseId) {
     return raw((String) serving.packRow(serving.requireRunId(), caseId).get("pack_json"));
+  }
+
+  @GetMapping("/cases/{caseId}/graph")
+  public ResponseEntity<String> graph(@PathVariable String caseId) {
+    String run = serving.requireRunId();
+    serving.caseRow(run, caseId);
+    return raw(serving.caseJson("serving_graph", "graph_json", run, caseId));
+  }
+
+  @GetMapping("/cases/{caseId}/timeline")
+  public ResponseEntity<String> timeline(@PathVariable String caseId) {
+    String run = serving.requireRunId();
+    serving.caseRow(run, caseId);
+    return raw(serving.caseJson("serving_timeline", "timeline_json", run, caseId));
   }
 
   @GetMapping("/cases/{caseId}/claims")

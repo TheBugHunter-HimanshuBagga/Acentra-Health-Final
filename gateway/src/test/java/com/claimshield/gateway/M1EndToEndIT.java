@@ -76,7 +76,7 @@ class M1EndToEndIT extends GatewayIT {
     JsonNode events = get("auditor", "/api/audit?entityType=case&entityId=" + caseId + "&limit=50").get("items");
     assertThat(events.toString()).contains("REVIEW_ACTION", "APPROVAL", "ACTION_EXECUTED", "CASE_CLOSED");
     assertThat(get("auditor", "/api/audit/verify").get("ok").asBoolean()).isTrue();
-    assertThat(get("investigator", "/api/precedents").get(0).get("status").asString()).isEqualTo("PENDING_COSIGN");
+    assertThat(get("investigator", "/api/precedents?status=PENDING_COSIGN").get(0).get("status").asString()).isEqualTo("PENDING_COSIGN");
 
     // 8. the closed case is visible in the queue as CLOSED and a different case is still untouched
     assertThat(get("investigator", "/api/queue?status=CLOSED").get("items")).hasSize(1);

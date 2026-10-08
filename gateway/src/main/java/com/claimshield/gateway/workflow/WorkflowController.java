@@ -58,9 +58,4 @@ public class WorkflowController {
       @Valid @RequestBody CloseRequest body) {
     return service.close(user, caseId, body);
   }
-
-  @GetMapping("/precedents")
-  public List<Map<String, Object>> precedents() {
-    return service.precedents();
-  }
 }

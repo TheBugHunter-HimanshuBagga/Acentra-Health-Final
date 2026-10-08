@@ -9,8 +9,21 @@ import tools.jackson.databind.JsonNode;
  */
 public interface BriefCandidateSource {
 
-  record Candidate(JsonNode output, String stopReason, String model, String promptSha256, String responseSha256) {}
+  record Candidate(JsonNode output, String stopReason, String model, String promptSha256, String responseSha256,
+      long latencyMs) {
+    public Candidate(JsonNode output, String stopReason, String model, String promptSha256, String responseSha256) {
+      this(output, stopReason, model, promptSha256, responseSha256, 0L);
+    }
+  }
 
-  /** attempt is 1 for the first try and 2 for the single retry. Empty means the source is unavailable. */
-  Optional<Candidate> generate(String caseId, JsonNode pack, int attempt);
+  /** False when no model is configured or healthy: the deterministic template is then the normal path. */
+  default boolean available() {
+    return true;
+  }
+
+  /**
+   * attempt is 1 for the first try and 2 for the single retry; hint lists the checks the previous attempt failed (or
+   * null). Empty means the source could not answer.
+   */
+  Optional<Candidate> generate(String caseId, JsonNode pack, int attempt, String hint);
 }

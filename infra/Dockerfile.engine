@@ -8,4 +8,7 @@ COPY contracts contracts
 WORKDIR /app/engine
 ENV PYTHONPATH=/app/engine
 # 0.0.0.0 is safe here only because compose exposes the port to the internal network, not the host.
-CMD ["uvicorn", "claimshield.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY infra/engine-entrypoint.sh /app/engine-entrypoint.sh
+RUN chmod +x /app/engine-entrypoint.sh
+ENV DATA_DIR=/data
+CMD ["/app/engine-entrypoint.sh"]

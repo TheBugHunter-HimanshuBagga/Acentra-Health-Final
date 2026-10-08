@@ -1,6 +1,10 @@
 spring:
   application:
     name: claimshield-gateway
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 4MB
   datasource:
     # One SQLite file shared with the Python engine. Python writes serving_*; this app writes wf_*.
     url: jdbc:sqlite:${APP_DB_PATH:../data/app.db}?journal_mode=WAL&busy_timeout=5000&foreign_keys=on
@@ -14,6 +18,8 @@ spring:
       separator: "^^^"
 server:
   port: 8080
+  tomcat:
+    max-swallow-size: 4MB
   servlet:
     session:
       cookie:
@@ -33,6 +39,10 @@ claimshield:
     mode: ${LLM_MODE:template}          # live | template
     model-brief: ${ANTHROPIC_MODEL_BRIEF:claude-sonnet-5-5}
     model-fast: ${ANTHROPIC_MODEL_FAST:claude-haiku-5-5}
+    api-key: ${ANTHROPIC_API_KEY:}
+    base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
     timeout-seconds: 25
   sarvam:
     enabled: ${VOICE_ENABLED:false}
+    api-key: ${SARVAM_API_KEY:}
+    base-url: ${SARVAM_BASE_URL:https://api.sarvam.ai}

@@ -1,0 +1,9 @@
+{
+  "REFUSE_MEDICAL": "I cannot give medical advice or judge clinical care. I can explain what the billing data shows and what a reviewer may check.",
+  "REFUSE_LEGAL": "I describe indicators that need human review; I cannot say whether anyone intended wrongdoing or broke the law. That is for the investigator and legal counsel.",
+  "REFUSE_ACTION": "I am read-only: I cannot approve, reject, close or change anything. Use the case page, where a person records the decision.",
+  "REFUSE_INJECTION": "I will not act on instructions that try to change how I work. Ask me about a case, a policy or how the platform works.",
+  "REFUSE_EVASION": "I cannot help with avoiding detection or review. I can explain how reviews work.",
+  "NEEDS_CLARIFICATION": "I could not tell what you want to know. Open a case or name one, such as CASE-0001, and ask why it is ranked where it is, what the evidence is, or what happens next.",
+  "NO_KNOWLEDGE": "I do not have enough validated information to answer that. A person on the team can help."
+}
