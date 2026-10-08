@@ -144,3 +144,10 @@ CREATE TABLE IF NOT EXISTS wf_handoff_message (
   sender_role TEXT NOT NULL CHECK (sender_role IN ('USER','AGENT','SYSTEM')), sender TEXT NOT NULL,
   text TEXT NOT NULL, created_at TEXT NOT NULL
 )
+^^^
+CREATE TABLE IF NOT EXISTS wf_notification (
+  notif_id TEXT PRIMARY KEY, username TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT, link TEXT,
+  ref TEXT, count INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, read_at TEXT
+)
+^^^
+CREATE INDEX IF NOT EXISTS idx_notification_user ON wf_notification (username, read_at, created_at)

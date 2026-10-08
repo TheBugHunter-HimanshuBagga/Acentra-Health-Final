@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/kit/section'
 import { useQuery } from '@tanstack/react-query'
 import cytoscape from 'cytoscape'
 import { useEffect, useRef, useState } from 'react'
@@ -63,8 +64,7 @@ export function LibraryPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
-        <p className="text-sm text-muted-foreground">Everything the evidence and the assistant rely on, in one place. The assistant quotes only from here and from validated case evidence.</p>
+        <PageHeader eyebrow="Reference" lead={null} accent="Library" lede="Everything the evidence and the assistant rely on, in one place. The assistant quotes only from here and from validated case evidence." />
         <label className="sr-only" htmlFor="lib-filter">Search the library</label>
         <Input id="lib-filter" className="max-w-sm" placeholder="Search policies, rules, terms" value={filter} onChange={(e) => setFilter(e.target.value)} />
       </header>

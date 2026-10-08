@@ -1,11 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApprovalBox, ClosePanel } from '@/components/ActionBoxes'
 import { BriefPanel } from '@/components/BriefPanel'
-import { NetworkSection } from '@/components/case/NetworkSection'
+import { StatusBadge } from '@/components/kit'
 import { ConfidenceSection, OutlookSection, TimelineSection } from '@/components/case/Sections'
 import { ImpactGrid, ReasoningChain, Triad } from '@/components/insight/ConfidenceViews'
+import { ChallengePanel, CopilotPanel } from '@/components/insight/CopilotViews'
 import { AiReasoning, ExplanationCard } from '@/components/insight/WhyFlagged'
 import { FeedbackPanel, InstitutionalMemory, KnowledgePanel } from '@/components/insight/LearningViews'
 import { DecisionPanel } from '@/components/DecisionPanel'
@@ -108,7 +110,7 @@ export function CasePage() {
   if (detail.isError) return <p role="alert">This case could not be found.</p>
   if (!detail.data || !me) {
     return (
-      <div className="grid gap-6 xl:grid-cols-[18rem_1fr_22rem]" aria-busy="true">
+      <div className="grid gap-6 2xl:grid-cols-[18rem_1fr_22rem]" aria-busy="true">
         {[0, 1, 2].map((i) => <div key={i} className="h-96 animate-pulse rounded-xl bg-muted" />)}
       </div>
     )
@@ -118,10 +120,11 @@ export function CasePage() {
   const shown = pack.data?.evidence.filter((e) => !channel || e.channel === channel) ?? []
   const strong = Object.values(d.channels ?? {}).filter((v) => v >= 0.65).length
   const f = d.factors
-  const rail = 'xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto xl:pr-1'
+  const rail = 'xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto xl:pr-1 xl:row-span-2 2xl:row-span-1'
+  const railRight = '2xl:sticky 2xl:top-20 2xl:max-h-[calc(100vh-6rem)] 2xl:self-start 2xl:overflow-y-auto 2xl:pr-1 xl:col-start-2 2xl:col-start-3 2xl:row-start-1'
 
   return (
-    <article className="grid gap-x-10 gap-y-8 xl:grid-cols-[17rem_minmax(0,1fr)_21rem]">
+    <article className="grid gap-x-10 gap-y-8 xl:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(0,1fr)_21rem]">
       {/* ---------------------------------------------------------------- LEFT: identity */}
       <aside className={`space-y-5 ${rail}`} aria-label="Case identity">
         <div className="space-y-3">
@@ -131,7 +134,7 @@ export function CasePage() {
             <TierBadge tier={d.tier} />
             {strong >= 2 && <span className="chip chip-corr">{strong} channels agree</span>}
           </div>
-          <p className="text-sm text-muted-foreground">Status: {d.status}</p>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">Status <StatusBadge status={d.status} /></p>
         </div>
 
         <dl className="space-y-3 border-y py-4 text-sm">
@@ -225,6 +228,10 @@ export function CasePage() {
               <ExplanationCard x={pack.data.explanation} />
               <ReasoningChain steps={pack.data.reasoning.steps} note={pack.data.reasoning.note} />
               <div className="panel p-5"><AiReasoning caseId={caseId} me={me} /></div>
+              <div className="space-y-4">
+                <div className="panel p-5"><CopilotPanel caseId={caseId} me={me} /></div>
+                <div className="panel p-5"><ChallengePanel caseId={caseId} me={me} /></div>
+              </div>
             </section>
           </ScrollReveal>
         )}
@@ -345,7 +352,12 @@ export function CasePage() {
         <ScrollReveal>
           <section aria-labelledby="net" className="space-y-4">
             <H2 id="net" eyebrow="Who and what is connected">Network</H2>
-            <NetworkSection caseId={caseId} />
+            <Link to={`/investigate/${caseId}`} className="group relative block overflow-hidden rounded-2xl border bg-card p-6 transition hover:border-[var(--signal)] hover:shadow-lg">
+              <p className="eyebrow">Investigation canvas</p>
+              <p className="display-4 mt-1 max-w-md text-fg">The relationship network opens in the investigation canvas.</p>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">Explore who is connected to {caseId}, watch the evidence build up in a playback, and ask the copilot about any entity or link.</p>
+              <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition group-hover:gap-3">Open the investigation canvas <span aria-hidden>→</span></span>
+            </Link>
           </section>
         </ScrollReveal>
 
@@ -379,7 +391,7 @@ export function CasePage() {
       </div>
 
       {/* ------------------------------------------------------- RIGHT: signals and the decision */}
-      <aside className={`space-y-10 ${rail}`} aria-label="Signals and decision">
+      <aside className={`space-y-10 ${railRight}`} aria-label="Signals and decision">
         <section aria-labelledby="out" className="space-y-3">
           <div className="flex flex-wrap items-center gap-2"><H2 id="out" eyebrow="Where to look next">30, 60 and 90 day outlook</H2><ProvChip kind="prediction" /></div>
           <OutlookSection outlook={d.outlook} />

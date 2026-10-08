@@ -58,19 +58,45 @@ public class AuthController {
     this.dummyHash = encoder.encode(java.util.UUID.randomUUID().toString());
   }
 
+  private static final int MAX_FAILURES = 8;
+  private static final long WINDOW_MS = 60_000;
+  private final java.util.concurrent.ConcurrentHashMap<String, java.util.Deque<Long>> failures =
+      new java.util.concurrent.ConcurrentHashMap<>();
+
+  /** Slows password guessing: after 8 wrong attempts for one name, wait a minute. Correct sign-ins reset the count. */
+  private void throttle(String username) {
+    java.util.Deque<Long> q = failures.get(username.toLowerCase());
+    if (q == null) {
+      return;
+    }
+    synchronized (q) {
+      long now = System.currentTimeMillis();
+      while (!q.isEmpty() && now - q.peekFirst() > WINDOW_MS) {
+        q.pollFirst();
+      }
+      if (q.size() >= MAX_FAILURES) {
+        throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", "Too many attempts",
+            "Too many failed sign-ins. Please wait a minute and try again.");
+      }
+    }
+  }
+
   @PostMapping("/auth/login")
   public Map<String, Object> login(@Valid @RequestBody LoginRequest body, HttpServletRequest req,
       HttpServletResponse res) {
+    throttle(body.username());
     var stored = users.findByUsername(body.username());
     boolean ok = encoder.matches(body.password(), stored.map(UserRepository.Stored::passwordHash).orElse(dummyHash))
         && stored.isPresent();
     if (!ok) {
+      failures.computeIfAbsent(body.username().toLowerCase(), k -> new java.util.ArrayDeque<>()).addLast(System.currentTimeMillis());
       tx.write(() -> audit.append(body.username(), "ANONYMOUS", "AUTH_LOGIN_FAILED", "user", body.username(),
           Map.of()));
       throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Sign-in failed",
           "The username or password is incorrect.");
     }
     AppUser u = stored.get().user();
+    failures.remove(body.username().toLowerCase());
     establish(u, req, res);
     tx.write(() -> audit.append(u.username(), u.role().name(), "AUTH_LOGIN", "user", u.id(), Map.of()));
     return users.profile(u);

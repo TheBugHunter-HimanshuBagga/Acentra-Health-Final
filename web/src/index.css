@@ -20,6 +20,32 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    --color-fg: var(--fg);
+    --color-fg-2: var(--fg-2);
+    --color-fg-3: var(--fg-3);
+    --color-line: var(--line);
+    --color-sunken: var(--sunken);
+    --color-hl: var(--hl);
+    --color-brand-bone: #f2f0e9;
+    --color-brand-bone-2: #e7e4da;
+    --color-brand-ink: #0c0e0d;
+    --color-brand-ink-2: #161816;
+    --color-volt: #d4ff3a;
+    --color-volt-2: #c2ef1f;
+    --color-forest: #00583f;
+    --color-forest-2: #0b6c4d;
+    --color-mint: #41d58c;
+    --color-tangerine: #f26a3d;
+    --color-viz-1: var(--viz-1);
+    --color-viz-2: var(--viz-2);
+    --color-viz-3: var(--viz-3);
+    --color-viz-4: var(--viz-4);
+    --color-viz-5: var(--viz-5);
+    --color-viz-6: var(--viz-6);
+    --color-viz-track: var(--viz-track);
+    --font-display: 'Bricolage Grotesque Variable', 'Geist Variable', sans-serif;
+    --font-serif: 'Instrument Serif', ui-serif, Georgia, serif;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --font-heading: 'Bricolage Grotesque Variable', 'Geist Variable', sans-serif;
     --font-sans: 'Geist Variable', sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
@@ -67,3 +93,22 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
 }
+
+
+@keyframes marquee { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+@keyframes live-ping { 0% { transform: scale(1); opacity: 0.55; } 80%, 100% { transform: scale(2.6); opacity: 0; } }
+
+/* Allotiq type scale */
+@utility display-hero { font-family: var(--font-display); font-weight: 780; font-size: clamp(3.5rem, 11vw, 10rem); line-height: 0.88; letter-spacing: -0.045em; font-variation-settings: "opsz" 96, "wdth" 82; }
+@utility display-1 { font-family: var(--font-display); font-weight: 780; font-size: clamp(3rem, 8vw, 7.5rem); line-height: 0.9; letter-spacing: -0.045em; font-variation-settings: "opsz" 96, "wdth" 82; }
+@utility display-2 { font-family: var(--font-display); font-weight: 780; font-size: clamp(2.5rem, 5.6vw, 5.25rem); line-height: 0.92; letter-spacing: -0.042em; font-variation-settings: "opsz" 96, "wdth" 82; }
+@utility display-3 { font-family: var(--font-display); font-weight: 760; font-size: clamp(1.9rem, 3.2vw, 3rem); line-height: 0.96; letter-spacing: -0.035em; font-variation-settings: "opsz" 72, "wdth" 84; }
+@utility display-4 { font-family: var(--font-display); font-weight: 740; font-size: 1.75rem; line-height: 1; letter-spacing: -0.03em; font-variation-settings: "opsz" 48, "wdth" 86; }
+@utility serif-accent { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.02em; font-variation-settings: normal; }
+@utility figure { font-family: var(--font-display); font-weight: 780; line-height: 0.9; letter-spacing: -0.04em; font-variation-settings: "opsz" 96, "wdth" 82; font-variant-numeric: tabular-nums; }
+@utility lede { font-size: 1.2rem; line-height: 1.62; color: var(--fg-2); }
+
+/* GSAP entrance: hidden until JS takes over, with a failsafe */
+.js [data-reveal] { visibility: hidden; animation: reveal-failsafe 0s linear 2.4s forwards; }
+@keyframes reveal-failsafe { to { visibility: visible; } }
+@media (prefers-reduced-motion: reduce) { .js [data-reveal] { visibility: visible; animation: none; } }

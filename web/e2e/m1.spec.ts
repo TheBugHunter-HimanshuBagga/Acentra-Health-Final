@@ -20,7 +20,7 @@ async function actAs(page: Page, role: string) {
 
 test('investigator reviews, supervisor approves, case is closed, audit chain verifies', async ({ page }) => {
   // sign in
-  await page.goto('/')
+  await page.goto('/login')
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
   await page.getByLabel('Username').fill('investigator')
   await page.getByLabel('Password').fill(password('investigator'))
@@ -52,6 +52,12 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   await expect(page.getByText('Why do we believe this?').first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Reasoning chain' })).toBeVisible()
   await expect(page.getByRole('button', { name: /HUMAN REVIEW/ })).toBeVisible()
+  // the copilot answers from the pack with citations and a visible badge; the challenge shows the other side
+  await page.getByRole('button', { name: 'How confident are we, and why?' }).click()
+  await expect(page.getByTestId('ai-badge').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Argue the other side' }).click()
+  await expect(page.getByText('The case against flagging')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Open the investigation canvas/ })).toBeVisible()
   await expect(page.getByText(/\d+ lines (have|were|duplicate|exceed)|equipment orders/).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Claim lines', exact: true })).toBeVisible()
 
@@ -80,7 +86,7 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   await page.getByLabel('Reason code').selectOption('NEEDS_RECORDS')
   await page.getByRole('button', { name: 'Record decision' }).click()
   await expect(page.getByText(/waits for a supervisor/)).toBeVisible()
-  await expect(page.getByText('Status: ACTION_PROPOSED')).toBeVisible()
+  await expect(page.locator('[data-status=\"ACTION_PROPOSED\"]').first()).toBeVisible()
   await expect(page.getByText('Waiting for a supervisor to approve.')).toBeVisible()
 
   // the investigator cannot see the audit trail
@@ -92,17 +98,17 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
   // a supervisor approves (two-person rule); the investigator then carries it out
   await actAs(page, 'SUPERVISOR')
   await page.getByRole('button', { name: 'Approve' }).click()
-  await expect(page.getByText('Status: ACTION_APPROVED')).toBeVisible()
+  await expect(page.locator('[data-status=\"ACTION_APPROVED\"]').first()).toBeVisible()
   await actAs(page, 'INVESTIGATOR')
   await page.getByRole('button', { name: 'Carry out (simulated)' }).click()
-  await expect(page.getByText('Status: ACTION_TAKEN')).toBeVisible()
+  await expect(page.locator('[data-status=\"ACTION_TAKEN\"]').first()).toBeVisible()
 
   // final decision
   await page.getByLabel('Outcome').selectOption('CONFIRMED')
   await page.locator('#closeReason').selectOption('CONFIRMED_PATTERN')
   await page.getByLabel(/Rationale/).fill('Records received and they confirm the billing pattern flagged by the rule.')
   await page.getByRole('button', { name: 'Close case' }).click()
-  await expect(page.getByText('Status: CLOSED')).toBeVisible()
+  await expect(page.locator('[data-status=\"CLOSED\"]').first()).toBeVisible()
   await expect(page.getByText(/Closed: CONFIRMED/)).toBeVisible()
   await expect(page.getByText(/approved by supervisor/)).toBeVisible()
 
@@ -120,10 +126,62 @@ test('investigator reviews, supervisor approves, case is closed, audit chain ver
 })
 
 test('a wrong password is refused with a clear message', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/login')
   await page.getByLabel('Username').fill('investigator')
   await page.getByLabel('Password').fill('definitely-not-it')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('alert')).toContainText('incorrect')
   await expect(page.getByRole('heading', { name: 'Executive dashboard' })).toHaveCount(0)
+})
+
+test('anonymous visitors see the landing page; the Lab and closing the chat do not break the app', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1, name: /Every alert/ })).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('link', { name: 'Sign in' }).first().click()
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await page.getByLabel('Username').fill('investigator')
+  await page.getByLabel('Password').fill(password('investigator'))
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  const skip = page.getByRole('button', { name: 'Skip for now' })
+  if (await skip.isVisible().catch(() => false)) await skip.click()
+  // opening and closing the assistant must never blank the screen
+  const toggle = page.getByRole('button', { name: 'Ask the assistant' })
+  await toggle.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await toggle.click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Executive dashboard' })).toBeVisible()
+  await page.getByRole('link', { name: 'The Lab' }).click()
+  await expect(page.getByText(/not evidence of real-world detection power/)).toBeVisible()
+})
+
+test('the investigation canvas: select, copilot reads the selection, simulate, and the copilot drives the graph', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Username').fill('investigator')
+  await page.getByLabel('Password').fill(password('investigator'))
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  const skip = page.getByRole('button', { name: 'Skip for now' })
+  if (await skip.isVisible().catch(() => false)) await skip.click()
+  await page.getByRole('link', { name: 'Investigate' }).first().click()
+  await expect(page.getByRole('heading', { level: 1, name: /CASE-\d+/ })).toBeVisible({ timeout: 20_000 })
+  const primary = page.getByRole('button', { name: /^Provider P-\d+, \w+ risk$/ }).first()
+  await primary.click()
+  await expect(page.getByText('Copilot reading')).toBeVisible()
+  await expect(page.getByText(/is classified .* risk/)).toBeVisible()
+
+  // the copilot answers a graph question from the records and changes the graph with the answer
+  await page.getByRole('tab', { name: 'Copilot' }).click()
+  await page.getByLabel('Ask the copilot').fill('Show me the suspicious claims')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByText(/contributing to the risk signal/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Claim C-/ }).first()).toBeVisible()
+
+  // playback: faster, to the end, with a human decision at the end
+  await page.getByRole('button', { name: 'Simulate investigation' }).click()
+  await page.getByRole('radio', { name: '4×' }).click()
+  await expect(page.getByText('SIU review recommended').first()).toBeVisible({ timeout: 40_000 })
+  await page.getByRole('tab', { name: /Events/ }).click()
+  await expect(page.getByText(/A person makes the final decision/).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Exit simulation' }).click()
+  await expect(page.getByRole('button', { name: 'Simulate investigation' })).toBeVisible()
 })

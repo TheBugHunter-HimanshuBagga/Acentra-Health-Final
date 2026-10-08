@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/kit/section'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -52,12 +53,7 @@ export function PrecedentsPage() {
   return (
     <section className="space-y-4">
       <header className="space-y-3">
-        <p className="eyebrow">Second Brain</p>
-        <h1 className="display text-4xl md:text-5xl">Precedents</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Every closed case can teach the system, but only after a second person (a supervisor) co-signs it. Active precedents are shown next to similar new cases.
-          Precedents never change a tier by themselves except to hold back cases that closely resemble several unfounded ones.
-        </p>
+        <PageHeader eyebrow="Second Brain" lead={null} accent="Precedents" lede="Every closed case can teach the system, but only after a second person (a supervisor) co-signs it. Active precedents are shown next to similar new cases. Precedents never change a tier by themselves except to hold back cases that closely resemble several unfounded ones." />
       </header>
       <section className="glass rounded-2xl p-5 md:p-6" aria-labelledby="loop-h">
         <p id="loop-h" className="eyebrow mb-4">{t('loop.title')}</p>

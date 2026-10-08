@@ -20,7 +20,7 @@ class SchemaInitTest {
   void workflowTablesExist() {
     Integer n = jdbc.queryForObject(
         "select count(*) from sqlite_master where type='table' and name like 'wf_%'", Integer.class);
-    assertThat(n).isEqualTo(16);
+    assertThat(n).isEqualTo(17);
   }
 
   @Test

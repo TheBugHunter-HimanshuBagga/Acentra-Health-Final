@@ -110,9 +110,9 @@ export interface EvalReport {
   coverage: { pct: number; dollarsInCapacityCases: number; positiveDollars: number }
   notes: string[]
   decoys: { falselyFlagged: number; lines: number }
-  decoyProviders: { type: string; scheme: string; bestTier: string; reachedHigh: boolean; providers: string[] }[]
+  decoyProviders: { type: string; scheme: string; bestTier: string | null; reachedHigh: boolean; providers: string[] }[]
   network: { casesPerRing: number; ringRecovered: boolean; ringProviders: string[] }
-  rules: { rule: string; channel: string; flagged: number; positives: number; recall: number; precisionLowerBound: number }[]
+  rules: { rule: string; channel: string; flagged: number; positives: number; truePositives?: number; recall: number | null; precisionLowerBound: number | null }[]
   temporal: { detected: number; schemeProviders: number; medianDelayMonths: number; falseAlarmsPer1000ProviderMonths: number }
   prediction: {
     available: boolean
@@ -447,4 +447,25 @@ export interface Growth {
   livePrecedents: number
   byDay: { day: string; n: number }[]
   recentDecisions: { case_id: string; action: string; actor: string; status: string; created_at: string }[]
+}
+
+/** Challenge, network analysis and copilot outputs: the same validated-or-fallback shape as the reasoning output. */
+export interface GroundedOutput {
+  available?: boolean
+  mode: 'LLM' | 'TEMPLATE'
+  badge: 'VALIDATED' | 'TEMPLATE_FALLBACK'
+  model: string | null
+  createdAt?: string
+  validation: { passed: boolean; retries: number; fallbackReason: string | null }
+  content: {
+    source: string
+    sections?: Record<string, AiSentence[]>
+    answerable?: boolean
+    notInPack?: string
+    metrics?: { label: string; value: number; detail?: string; source: string }[]
+  }
+}
+
+export interface CopilotAnswer extends GroundedOutput {
+  question: string
 }

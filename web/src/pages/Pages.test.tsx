@@ -1,7 +1,8 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ChatDock } from '@/components/ChatDock'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { me, mockFetch, renderWithProviders } from '@/test/utils'
 import { DashboardPage } from './Dashboard'
 import { GovernancePage } from './Governance'
@@ -146,5 +147,33 @@ describe('ChatDock', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Ask the assistant' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Speak' })).toBeDisabled())
     expect(screen.getByLabelText('Ask about a case, a policy or how this works')).toBeEnabled()
+  })
+
+  it('closing and reopening the panel leaves the page intact (regression: closing used to blank the screen)', async () => {
+    mockFetch({ 'GET /api/auth/me': me(), 'GET /api/health': { status: 'UP', run: 'RUN-001', engine: 'UP', llm: 'TEMPLATE', voice: 'OFF' } })
+    renderWithProviders(<div><p>page behind the chat</p><ChatDock /></div>)
+    const toggle = await screen.findByRole('button', { name: 'Ask the assistant' })
+    await userEvent.click(toggle)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('page behind the chat')).toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('ErrorBoundary', () => {
+  function Boom(): never {
+    throw new Error('boom')
+  }
+  it('keeps the rest of the page when an optional widget fails, and offers recovery when the page fails', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderWithProviders(<div><p>still here</p><ErrorBoundary quiet><Boom /></ErrorBoundary></div>)
+    expect(screen.getByText('still here')).toBeInTheDocument()
+    renderWithProviders(<ErrorBoundary><Boom /></ErrorBoundary>)
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be shown')
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
+    spy.mockRestore()
   })
 })

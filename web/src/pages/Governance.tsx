@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/kit/section'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -233,12 +234,7 @@ export function GovernancePage() {
   return (
     <section className="space-y-5">
       <header className="space-y-1">
-        <p className="eyebrow">Governed knowledge</p>
-        <h1 className="display text-4xl md:text-5xl">Rules and exceptions</h1>
-        <p className="text-sm text-muted-foreground">
-          An exception teaches the system that a pattern was legitimate. It is drafted from a co-signed UNFOUNDED closure, simulated on real data, approved by a
-          different person in the governance role, and only then applied in a re-run. Recorded-fact rules (such as billing after a date of death) can never be excepted.
-        </p>
+        <PageHeader eyebrow="Governed knowledge" lead="Rules and" accent="exceptions" inline lede="An exception teaches the system that a pattern was legitimate. It is drafted from a co-signed UNFOUNDED closure, simulated on real data, approved by a different person in the governance role, and only then applied in a re-run. Recorded-fact rules (such as billing after a date of death) can never be excepted." />
       </header>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {message && <p role="status" className="text-sm">{message}</p>}

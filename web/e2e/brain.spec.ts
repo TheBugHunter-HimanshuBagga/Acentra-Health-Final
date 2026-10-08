@@ -38,7 +38,7 @@ async function candidateCase(page: Page): Promise<string> {
 }
 
 test('closing a case teaches the system: co-sign, exception, simulation, approval, re-run, diff', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/login')
   await page.getByLabel('Username').fill('investigator')
   await page.getByLabel('Password').fill(password('investigator'))
   await page.getByRole('button', { name: 'Sign in' }).click()
@@ -54,12 +54,12 @@ test('closing a case teaches the system: co-sign, exception, simulation, approva
   await page.getByRole('radio', { name: 'Reject' }).click()
   await page.getByLabel('Reason code').selectOption('LEGIT_CLINICAL_PATTERN')
   await page.getByRole('button', { name: 'Record decision' }).click()
-  await expect(page.getByText('Status: IN_REVIEW')).toBeVisible()
+  await expect(page.locator('[data-status=\"IN_REVIEW\"]').first()).toBeVisible()
   await page.getByLabel('Outcome').selectOption('UNFOUNDED')
   await page.locator('#closeReason').selectOption('LEGIT_CLINICAL_PATTERN')
   await page.getByLabel(/Rationale/).fill('Records show the pattern is explained by the specialty and the patient mix, so no action is needed.')
   await page.getByRole('button', { name: 'Close case' }).click()
-  await expect(page.getByText('Status: CLOSED')).toBeVisible()
+  await expect(page.locator('[data-status=\"CLOSED\"]').first()).toBeVisible()
 
   // a supervisor co-signs the precedent (a second person: the closer cannot)
   await actAs(page, 'SUPERVISOR')

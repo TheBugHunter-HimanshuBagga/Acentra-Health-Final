@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { BookMarked, Headset, LayoutDashboard, Library, ListChecks, Moon, ScrollText, SlidersHorizontal, Sun } from 'lucide-react'
+import { BookMarked, FlaskConical, Network, Headset, LayoutDashboard, Library, ListChecks, Moon, ScrollText, SlidersHorizontal, Sun } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ChatDock } from '@/components/ChatDock'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { CommandPalette } from '@/components/CommandPalette'
+import { NotificationBell } from '@/components/NotificationBell'
 import { setUiLanguage } from '@/i18n'
 import { api, ApiError } from '@/lib/api'
 import { useAuthActions, useMe, useSavePrefs } from '@/lib/auth'
@@ -18,6 +20,8 @@ const ROLES: Role[] = ['INVESTIGATOR', 'SUPERVISOR', 'GOVERNANCE', 'AUDITOR']
 const NAV = [
   { to: '/', key: 'nav.dashboard', icon: LayoutDashboard, end: true },
   { to: '/queue', key: 'nav.queue', icon: ListChecks, end: false },
+  { to: '/investigate', key: 'nav.investigate', icon: Network, end: false },
+  { to: '/lab', key: 'nav.lab', icon: FlaskConical, end: false },
   { to: '/precedents', key: 'nav.precedents', icon: BookMarked, end: false },
   { to: '/governance', key: 'nav.governance', icon: SlidersHorizontal, end: false },
   { to: '/audit', key: 'nav.audit', icon: ScrollText, end: false },
@@ -64,7 +68,7 @@ export function Shell() {
   }, [language])
 
   if (me.isPending) return <p className="p-4">Loading…</p>
-  if (!me.data) return <Navigate to="/login" replace />
+  if (!me.data) return <Navigate to="/home" replace />
   const user = me.data
   if (!user.onboarded && !user.onboardingSkipped) return <Navigate to="/welcome" replace />
 
@@ -148,6 +152,7 @@ export function Shell() {
           <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))} className="hidden h-8 items-center gap-2 rounded-full border px-3 text-xs text-muted-foreground hover:border-primary md:inline-flex" aria-label="Search">
             Search <kbd className="mono text-[0.65rem]">Ctrl K</kbd>
           </button>
+          <NotificationBell />
           <button
             ref={themeBtn}
             type="button"
@@ -182,7 +187,7 @@ export function Shell() {
           </PageTransition>
         </main>
       </div>
-      <ChatDock />
+      <ErrorBoundary quiet><ChatDock /></ErrorBoundary>
       <CommandPalette onToggleTheme={() => toggle(themeBtn.current)} showAgent={user.role === 'SUPERVISOR' || user.role === 'GOVERNANCE'} />
     </div>
   )

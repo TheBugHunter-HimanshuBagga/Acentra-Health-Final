@@ -15,10 +15,18 @@ const dashboard = {
 const unauth = { status: 401, body: { code: 'AUTH_REQUIRED', detail: 'Please sign in to continue.' } }
 
 describe('App', () => {
-  it('sends anonymous visitors to the sign-in page', async () => {
+  it('sends anonymous visitors to the public landing page, which leads to sign-in', async () => {
     mockFetch({ 'GET /api/auth/me': unauth })
     renderWithProviders(<App />, '/')
-    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Every alert/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Sign in' })[0]).toHaveAttribute('href', '/login')
+    expect(screen.getByText(/Synthetic data only/)).toBeInTheDocument()
+  })
+
+  it('shows signed-in people a way straight back into the workspace', async () => {
+    mockFetch({ 'GET /api/auth/me': me() })
+    renderWithProviders(<App />, '/home')
+    expect((await screen.findAllByRole('link', { name: 'Open the workspace' }))[0]).toHaveAttribute('href', '/')
   })
 
   it('signs in, shows the queue, and surfaces a failed sign-in', async () => {

@@ -8,6 +8,8 @@ import type { QueueResponse } from '@/lib/types'
 const PAGES: [string, string][] = [
   ['Dashboard', '/'],
   ['SIU queue', '/queue'],
+  ['Investigation canvas', '/investigate'],
+  ['The Lab', '/lab'],
   ['Precedents', '/precedents'],
   ['Rules and exceptions', '/governance'],
   ['Audit trail', '/audit'],

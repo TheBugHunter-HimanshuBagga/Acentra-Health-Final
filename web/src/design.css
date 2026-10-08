@@ -56,3 +56,58 @@ html.theme-fade, html.theme-fade * { transition: background-color .45s ease, col
 
 .serif { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: -0.02em; }
 .lime { background: var(--lime); color: #0c0e0d; }
+
+
+/* Investigation canvas motion: every animation marks a state change */
+@keyframes edge-draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
+@keyframes edge-fade { from { opacity: 0; } }
+@keyframes node-in { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes ring-pulse { 0% { opacity: .9; transform: scale(.97); } 100% { opacity: 0; transform: scale(1.16); } }
+.edge-draw { animation: edge-draw .95s cubic-bezier(.2,.8,.2,1) both; }
+.edge-fade { animation: edge-fade .6s ease both; }
+.node-in { transform-box: fill-box; transform-origin: center; animation: node-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.ring-pulse { transform-box: fill-box; transform-origin: center; animation: ring-pulse 1.4s ease-out 1 both; }
+@media (prefers-reduced-motion: reduce) { .edge-draw, .edge-fade, .node-in, .ring-pulse { animation: none; } }
+
+
+/* Notifications: a bell that rings once when something is waiting, a popover and toasts that arrive from the side */
+@keyframes bell-ring { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(16deg); } 20% { transform: rotate(-14deg); } 30% { transform: rotate(10deg); } 40% { transform: rotate(-6deg); } 50% { transform: rotate(0); } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(-18px) scale(.97); } to { opacity: 1; transform: none; } }
+.bell-ring { transform-origin: 50% 0; animation: bell-ring 1.1s ease-in-out 1; }
+.notif-pop { animation: pop-in .18s cubic-bezier(.2,.8,.2,1) both; transform-origin: top right; }
+.toast-in { animation: toast-in .35s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .bell-ring, .notif-pop, .toast-in { animation: none; } }
+
+@keyframes logo-drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.logo-drift { animation: logo-drift 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .logo-drift { animation: none; } }
+
+/* Workflow orbit: stages wake as a claim passes; the loop itself slowly flows */
+@keyframes wo-spin { to { transform: rotate(360deg); } }
+@keyframes wo-flow { to { stroke-dashoffset: -64; } }
+.wo-spin { transform-box: fill-box; transform-origin: center; animation: wo-spin linear infinite; }
+.wo-flow { stroke-dasharray: 2 30; animation: wo-flow 6s linear infinite; }
+.wo-node .wo-label { opacity: .55; transition: opacity .6s ease; }
+.wo-node .wo-note { opacity: 0; transition: opacity .6s ease; }
+.wo-node .wo-halo { opacity: 0; transition: opacity .6s ease; }
+.wo-node .wo-ring { opacity: 0; transform-box: fill-box; transform-origin: center; transform: scale(1); transition: opacity .5s ease, transform 1s cubic-bezier(.2,.8,.2,1); }
+.wo-node .wo-core { transition: fill .4s ease; }
+.wo-node[data-on="1"] .wo-label { opacity: 1; }
+.wo-node[data-on="1"] .wo-note { opacity: 1; }
+.wo-node[data-on="1"] .wo-halo { opacity: 1; }
+.wo-node[data-on="1"] .wo-ring { opacity: .9; transform: scale(2.1); }
+.wo-node[data-on="1"] .wo-core { fill: var(--signal); }
+@media (prefers-reduced-motion: reduce) { .wo-spin, .wo-flow { animation: none; } .wo-node .wo-label, .wo-node .wo-note { opacity: .85; } }
+
+/* Investigation canvas: ambient life. Links carry a slow flow, the primary breathes, tiles lift under the cursor. */
+@keyframes edge-flow { to { stroke-dashoffset: -37; } }
+@keyframes breathe { 0%, 100% { opacity: .12; } 50% { opacity: .8; } }   /* opacity only: the tile's box never moves, so it stays clickable */
+.edge-flow { animation: edge-flow 2.6s linear infinite; }
+.edge-flow-fast { animation-duration: 1.6s; }
+.primary-breathe { transform-box: fill-box; transform-origin: center; animation: breathe 3.4s ease-in-out infinite; }
+.node-lift { transform-box: fill-box; transform-origin: center; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+g[role="button"]:hover > .node-in > .node-lift, g[role="button"]:focus-visible > .node-in > .node-lift { transform: translateY(-3px) scale(1.035); }
+@keyframes step-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+.step-in { animation: step-in .45s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .edge-flow, .primary-breathe, .step-in { animation: none; } .node-lift { transition: none; } }

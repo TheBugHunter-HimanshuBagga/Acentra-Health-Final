@@ -15,7 +15,9 @@
     "language": "Language",
     "theme": "Theme",
     "askAssistant": "Ask the assistant",
-    "agent": "Specialist desk"
+    "agent": "Specialist desk",
+    "lab": "The Lab",
+    "investigate": "Investigate"
   },
   "onboarding": {
     "title": "Welcome to ClaimShield Nexus",

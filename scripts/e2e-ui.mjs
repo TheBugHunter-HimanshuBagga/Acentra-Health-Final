@@ -65,7 +65,7 @@ try {
   await waitFor('http://localhost:5173/', 'web')
 
   console.log('== 4/4 Playwright (real browser)')
-  result = await run('npx', ['playwright', 'test', 'm1.spec.ts'], { cwd: path.join(ROOT, 'web'), env })
+  result = await run('npx', ['playwright', 'test', 'm1.spec.ts', 'zz-handoff.spec.ts'], { cwd: path.join(ROOT, 'web'), env })
 } catch (e) {
   console.error(String(e))
 } finally {

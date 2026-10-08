@@ -14,7 +14,7 @@ public class SpaForwardConfig implements WebMvcConfigurer {
   @Override
   public void addViewControllers(ViewControllerRegistry registry) {
     for (String route : new String[] {"/login", "/welcome", "/queue", "/precedents", "/governance", "/audit",
-        "/library", "/cases/{caseId}"}) {
+        "/library", "/home", "/lab", "/agent", "/investigate", "/investigate/{caseId}", "/cases/{caseId}"}) {
       registry.addViewController(route).setViewName("forward:/index.html");
     }
   }

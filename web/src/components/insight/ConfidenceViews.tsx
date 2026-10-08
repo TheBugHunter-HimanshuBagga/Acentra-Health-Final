@@ -18,7 +18,7 @@ export function Triad({ c }: { c: ConfidenceBlock }) {
   const { t } = useTranslation()
   const low = c.level === 'LOW'
   return (
-    <section aria-labelledby="triad-h" className="space-y-3">
+    <section aria-labelledby="triad-h" className="@container space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="eyebrow">{t('triad.eyebrow', 'Risk, evidence and confidence')}</p>
@@ -26,7 +26,7 @@ export function Triad({ c }: { c: ConfidenceBlock }) {
         </div>
         <p className="max-w-md text-xs text-muted-foreground">{c.risk.note} {t('triad.rule', 'Confidence comes from evidence, never from the risk score.')}</p>
       </div>
-      <div className="grid gap-px overflow-hidden rounded-[var(--radius)] border bg-border md:grid-cols-3">
+      <div className="grid gap-px overflow-hidden rounded-[var(--radius)] border bg-border @3xl:grid-cols-3">
         {/* RISK */}
         <div className="space-y-3 bg-card p-5">
           <p className="eyebrow">{t('triad.risk', 'Risk')}</p>
@@ -98,12 +98,12 @@ export function Triad({ c }: { c: ConfidenceBlock }) {
 export function ImpactGrid({ impact }: { impact: ImpactBlock }) {
   const { t } = useTranslation()
   return (
-    <section aria-labelledby="impact-h" className="space-y-4">
+    <section aria-labelledby="impact-h" className="@container space-y-4">
       <div>
         <p className="eyebrow">{t('impact.eyebrow', 'Who and what is affected')}</p>
         <h2 id="impact-h" className="text-xl font-semibold">{t('impact.title', 'Case impact')}</h2>
       </div>
-      <ul className="grid gap-px overflow-hidden rounded-[var(--radius)] border bg-border sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid gap-px overflow-hidden rounded-[var(--radius)] border bg-border @md:grid-cols-2 @4xl:grid-cols-4">
         {impact.items.map((i) => (
           <li key={i.id} className="space-y-2 bg-card p-4">
             <div className="flex items-center justify-between gap-2">
@@ -135,12 +135,12 @@ export function ReasoningChain({ steps, note }: { steps: ReasoningStep[]; note: 
   const [open, setOpen] = useState(steps[0]?.id ?? '')
   const cur = steps.find((s) => s.id === open) ?? steps[0]
   return (
-    <section aria-labelledby="chain-h" className="space-y-4">
+    <section aria-labelledby="chain-h" className="@container space-y-4">
       <div>
         <p className="eyebrow">{t('chain.eyebrow', 'How the system got here')}</p>
         <h2 id="chain-h" className="text-xl font-semibold">{t('chain.title', 'Reasoning chain')}</h2>
       </div>
-      <ol className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius)] border bg-border sm:grid-cols-4 lg:grid-cols-7" aria-label={t('chain.title', 'Reasoning chain')}>
+      <ol className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius)] border bg-border @lg:grid-cols-4 @3xl:grid-cols-7" aria-label={t('chain.title', 'Reasoning chain')}>
         {steps.map((s, i) => (
           <li key={s.id} className="bg-card">
             <button

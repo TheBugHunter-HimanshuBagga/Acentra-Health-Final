@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SignalField } from '@/components/SignalField'
+import { WorkflowOrbit } from '@/components/WorkflowOrbit'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +12,7 @@ import { useAuthActions } from '@/lib/auth'
 
 const POINTS = [
   'Independent evidence channels corroborate every case',
-  'Claude explains only validated evidence',
+  'AI explains only validated evidence',
   'Two people approve every high-impact action',
   'Each decision becomes governed institutional knowledge',
 ]
@@ -55,6 +56,7 @@ export function LoginPage() {
     <div ref={root} className="relative grid min-h-screen overflow-hidden bg-background lg:grid-cols-[1.15fr_1fr]">
       <div className="grid-bg absolute inset-0" aria-hidden />
       <SignalField />
+      <WorkflowOrbit className="opacity-80" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent" aria-hidden />
 
       <div className="relative z-10 flex flex-col justify-center gap-8 p-8 lg:p-16">

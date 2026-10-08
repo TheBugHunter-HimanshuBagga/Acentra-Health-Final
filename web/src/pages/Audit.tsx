@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/kit/section'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -58,9 +59,7 @@ export function AuditPage() {
   return (
     <section className="space-y-8">
       <header className="space-y-3">
-        <p className="eyebrow">Accountability</p>
-        <h1 className="display text-4xl md:text-5xl">Audit trail</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">Every important decision is accountable: each event is chained to the one before it by a hash, so an edit anywhere breaks the chain.</p>
+        <PageHeader eyebrow="Accountability" lead="Audit" accent="trail" inline lede="Every important decision is accountable: each event is chained to the one before it by a hash, so an edit anywhere breaks the chain." />
       </header>
 
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-y py-4">

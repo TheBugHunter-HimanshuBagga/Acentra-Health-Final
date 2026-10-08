@@ -27,8 +27,13 @@ public class ReasoningController {
   private final ReasoningService reasoning;
   private final LearningService learning;
   private final HandoffService handoff;
+  private final CopilotService copilot;
+  private final NotificationService notifications;
 
-  public ReasoningController(ReasoningService reasoning, LearningService learning, HandoffService handoff) {
+  public ReasoningController(ReasoningService reasoning, LearningService learning, HandoffService handoff,
+      CopilotService copilot, NotificationService notifications) {
+    this.copilot = copilot;
+    this.notifications = notifications;
     this.reasoning = reasoning;
     this.learning = learning;
     this.handoff = handoff;
@@ -62,6 +67,48 @@ public class ReasoningController {
     out.put("available", o.isPresent());
     o.ifPresent(out::putAll);
     return out;
+  }
+
+  public record AskBody(@NotBlank String question) {}
+
+  public record ReadBody(List<String> ids, Boolean all) {}
+
+  @GetMapping("/notifications")
+  public Map<String, Object> notificationList(@AuthenticationPrincipal AppUser u) {
+    return notifications.list(u);
+  }
+
+  @PostMapping("/notifications/read")
+  public Map<String, Object> notificationRead(@AuthenticationPrincipal AppUser u, @RequestBody ReadBody body) {
+    return notifications.markRead(u, body.ids(), Boolean.TRUE.equals(body.all()));
+  }
+
+  @GetMapping("/cases/{caseId}/challenge")
+  public Map<String, Object> challengeGet(@PathVariable String caseId) {
+    return wrap(copilot.stored(caseId, CopilotService.CHALLENGE));
+  }
+
+  @PostMapping("/cases/{caseId}/challenge")
+  public Map<String, Object> challengeMake(@AuthenticationPrincipal AppUser u, @PathVariable String caseId,
+      @RequestParam(defaultValue = "false") boolean force) {
+    return copilot.generate(u, caseId, CopilotService.CHALLENGE, force);
+  }
+
+  @GetMapping("/cases/{caseId}/network-analysis")
+  public Map<String, Object> networkGet(@PathVariable String caseId) {
+    return wrap(copilot.stored(caseId, CopilotService.NETWORK));
+  }
+
+  @PostMapping("/cases/{caseId}/network-analysis")
+  public Map<String, Object> networkMake(@AuthenticationPrincipal AppUser u, @PathVariable String caseId,
+      @RequestParam(defaultValue = "false") boolean force) {
+    return copilot.generate(u, caseId, CopilotService.NETWORK, force);
+  }
+
+  @PostMapping("/cases/{caseId}/copilot")
+  public Map<String, Object> ask(@AuthenticationPrincipal AppUser u, @PathVariable String caseId,
+      @RequestBody AskBody body) {
+    return copilot.ask(u, caseId, body.question());
   }
 
   // ---------------------------------------------------------------------------------------- feedback + memory

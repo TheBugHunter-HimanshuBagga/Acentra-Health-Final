@@ -48,6 +48,7 @@ public class HandoffService {
   private final Tx tx;
   private final Json json;
   private final Clock clock;
+  private final NotificationService notifications;
   private final Map<String, Deque<Long>> recent = new ConcurrentHashMap<>();
   private final ScheduledExecutorService pump = Executors.newScheduledThreadPool(2, r -> {
     Thread t = new Thread(r, "handoff-sse");
@@ -55,7 +56,8 @@ public class HandoffService {
     return t;
   });
 
-  public HandoffService(JdbcTemplate jdbc, AuditService audit, Tx tx, Json json, Clock clock) {
+  public HandoffService(JdbcTemplate jdbc, AuditService audit, Tx tx, Json json, Clock clock, NotificationService notifications) {
+    this.notifications = notifications;
     this.jdbc = jdbc;
     this.audit = audit;
     this.tx = tx;
@@ -107,6 +109,8 @@ public class HandoffService {
       system(id, "A human specialist has been requested. You can keep typing; they will see this conversation.");
       audit.append(u.username(), u.role().name(), "HANDOFF_REQUESTED", "handoff", id,
           map("reason", finalWhy, "caseId", caseId, "sessionId", sessionId));
+      notifications.notifyRoles(List.of("SUPERVISOR", "GOVERNANCE"), u.username(), "HANDOFF_REQUESTED",
+          u.displayName() + " needs a specialist", finalWhy, "/agent?open=" + id, id);
     });
     return mine(u);
   }
@@ -189,6 +193,11 @@ public class HandoffService {
           + "(?,?,?,?,?,?)", id, handoffId, role, u.username(), t, now());
       audit.append(u.username(), u.role().name(), "HANDOFF_MESSAGE", "handoff", handoffId,
           map("messageId", id, "senderRole", role, "chars", t.length(), "sha256", sha(t)));
+      String other = requester ? (String) h.get("agent") : (String) h.get("requested_by");
+      if (other != null) {
+        notifications.notify(other, "HANDOFF_MESSAGE", u.displayName() + " sent a message", "Open the conversation to read it.",
+            requester ? "/agent?open=" + handoffId : "chat:" + handoffId, handoffId + ":msg");
+      }
     });
     return map("messageId", id, "sent", true);
   }
@@ -246,6 +255,8 @@ public class HandoffService {
       system(handoffId, u.displayName() + " (" + u.role().name().toLowerCase() + ") joined the conversation.");
       audit.append(u.username(), u.role().name(), "HANDOFF_JOINED", "handoff", handoffId,
           map("requestedBy", h.get("requested_by")));
+      notifications.notify((String) h.get("requested_by"), "HANDOFF_JOINED", u.displayName() + " joined your conversation",
+          "A specialist is now in your chat.", "chat:" + handoffId, handoffId + ":join");
     });
     return fetch(u, handoffId, 0);
   }
@@ -259,6 +270,11 @@ public class HandoffService {
       jdbc.update("UPDATE wf_handoff SET status = 'CLOSED', closed_at = ? WHERE handoff_id = ?", now(), handoffId);
       system(handoffId, "The conversation was closed by " + u.username() + ".");
       audit.append(u.username(), u.role().name(), "HANDOFF_CLOSED", "handoff", handoffId, map());
+      String other = u.username().equals(h.get("agent")) ? (String) h.get("requested_by") : (String) h.get("agent");
+      if (other != null) {
+        notifications.notify(other, "HANDOFF_CLOSED", "Conversation closed", u.displayName() + " closed the conversation.",
+            "chat:" + handoffId, handoffId + ":close");
+      }
     });
     return map("closed", true);
   }

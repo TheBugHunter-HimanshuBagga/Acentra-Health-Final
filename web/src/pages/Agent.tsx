@@ -1,6 +1,7 @@
+import { PageHeader } from '@/components/kit/section'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/auth'
@@ -16,6 +17,8 @@ export function AgentPage() {
   const me = useMe().data
   const qc = useQueryClient()
   const allowed = me?.role === 'SUPERVISOR' || me?.role === 'GOVERNANCE'
+  const [params] = useSearchParams()
+  const wanted = params.get('open')
   const [sel, setSel] = useState<string | null>(null)
   const [msgs, setMsgs] = useState<HandoffMessage[]>([])
   const [text, setText] = useState('')
@@ -26,7 +29,11 @@ export function AgentPage() {
   })
   const current = queue.data?.items.find((i) => i.handoffId === sel)
 
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [msgs])
+  useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [msgs])
+  useEffect(() => {          // arriving from a notification: open that conversation if it is already yours
+    const hit = queue.data?.items.find((i) => i.handoffId === wanted)
+    if (hit && hit.status === 'ACTIVE') setSel(hit.handoffId)
+  }, [wanted, queue.data])
   useEffect(() => {
     if (!sel || !current || current.status === 'WAITING') return
     void api<{ messages: HandoffMessage[] }>(`/api/handoff/${sel}`).then((r) => setMsgs(r.messages)).catch(() => undefined)
@@ -79,9 +86,7 @@ export function AgentPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-3">
-        <p className="eyebrow">Human in the loop</p>
-        <h1 className="display text-4xl md:text-5xl">Specialist desk</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">People land here when the assistant could not answer confidently or they asked for a person. Joining continues the same chat; every message is stored for the audit trail.</p>
+        <PageHeader eyebrow="Human in the loop" lead="Specialist" accent="desk" inline lede="People land here when the assistant could not answer confidently or they asked for a person. Joining continues the same chat; every message is stored for the audit trail." />
       </header>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
@@ -90,7 +95,7 @@ export function AgentPage() {
           {items.length === 0 && <p className="text-sm text-muted-foreground">No one is waiting for a specialist.</p>}
           <ul className="divide-y border-y">
             {items.map((i) => (
-              <li key={i.handoffId} className={`space-y-1 py-3 text-sm ${i.handoffId === sel ? 'bg-muted/50' : ''}`}>
+              <li key={i.handoffId} className={`space-y-1 px-2 py-3 text-sm transition ${i.handoffId === sel ? 'bg-muted/50' : ''} ${i.handoffId === wanted && i.status === 'WAITING' ? 'bg-[color-mix(in_oklab,var(--signal)_10%,transparent)] ring-1 ring-[var(--signal)]' : ''}`}>
                 <div className="flex items-center gap-2">
                   <span className="mono text-xs">{i.handoffId}</span>
                   <span className={`chip ${i.status === 'WAITING' ? 'chip-corr' : 'chip-fact'}`}>{i.status.toLowerCase()}</span>
@@ -112,7 +117,7 @@ export function AgentPage() {
               <div className="flex-1 space-y-2 overflow-y-auto py-3" aria-live="polite">
                 {msgs.map((m) => (
                   <p key={m.seq} className={m.role === 'USER' ? 'mr-12 rounded-xl rounded-bl-sm border bg-muted px-3 py-2 text-sm' : m.role === 'AGENT' ? 'ml-12 rounded-xl rounded-br-sm border border-[var(--ok)] px-3 py-2 text-sm' : 'text-center text-xs text-muted-foreground'}>
-                    <span className="eyebrow mr-2">{m.role === 'SYSTEM' ? '' : m.sender}</span>{m.text}
+                    <span className="eyebrow mr-2">{m.role === 'SYSTEM' ? '' : m.sender}</span>{m.text}<span className="mono ml-2 text-[0.6rem] text-muted-foreground">{new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </p>
                 ))}
                 <div ref={end} />

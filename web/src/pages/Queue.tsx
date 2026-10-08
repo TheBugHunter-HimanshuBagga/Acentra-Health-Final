@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/kit/section'
 import { useGSAP } from '@gsap/react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import gsap from 'gsap'
@@ -158,10 +159,7 @@ export function QueuePage() {
   return (
     <section className="space-y-6">
       <header className="space-y-4">
-        <div>
-          <p className="eyebrow">Operations console</p>
-          <h1 className="text-3xl font-semibold md:text-4xl">SIU queue</h1>
-        </div>
+        <PageHeader eyebrow="Operations console" lead="SIU" accent="queue" inline />
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-y py-4">
           <div className="relative min-w-[14rem] flex-1">
             <Label htmlFor="qsearch" className="sr-only">{t('queue.search')}</Label>

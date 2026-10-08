@@ -95,4 +95,26 @@ class AuthIT extends GatewayIT {
       assertThat(passwords().values()).doesNotContain(hash);
     }
   }
+
+  @Test
+  void repeatedWrongPasswordsAreThrottledAndACorrectOneStillWorksForOtherUsers() throws Exception {
+    Object bad = Map.of("username", "governance", "password", "nope");
+    int last = 0;
+    for (int i = 0; i < 9; i++) {
+      last = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+          .content(json.writeValueAsString(bad))).andReturn().getResponse().getStatus();
+    }
+    assertThat(last).isEqualTo(429);
+    // even the right password waits out the window for that name, but another user is unaffected
+    MvcResult other = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        .content(json.writeValueAsString(Map.of("username", "auditor", "password", passwords().get("auditor")))))
+        .andReturn();
+    assertThat(other.getResponse().getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  void unknownAddressesAnswerNotFoundNotAServerError() throws Exception {
+    assertThat(mvc.perform(MockMvcRequestBuilders.get("/definitely/not/here")).andReturn().getResponse().getStatus())
+        .isEqualTo(404);
+  }
 }

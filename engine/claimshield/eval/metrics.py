@@ -184,9 +184,8 @@ def evaluate(claims_con: duckdb.DuckDBPyConnection, gt_path: Path, hits: list[di
                      "basis": "synthetic-ground-truth"},
         "notes": ["Recall is exact; precision is a lower bound.",
                   "Peer signals are scored on the last months of data only; provider recall is their headline.",
-                  "Decoy providers D1-D4 are expected to be flagged by peer statistics; they must never reach HIGH. "
-                  "Decoy D2 (shared buildings) has no detector until the graph work.",
-                  "There is no train/validation/test split yet."],
+                  "Decoy providers D1-D4 look unusual on purpose; they may be flagged weakly but must never reach HIGH.",
+                  "Detector recall is measured over the whole synthetic window (the rules have no fitted parameters); the 30/60/90-day outlook model is evaluated on held-out providers and later months (see prediction.split)."],
     }
 
 

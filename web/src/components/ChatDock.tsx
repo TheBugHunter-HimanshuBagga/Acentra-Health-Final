@@ -57,7 +57,7 @@ export function ChatDock() {
   const lang = me?.language ?? 'en'
   const caseId = /^\/cases\/([A-Za-z0-9-]+)/.exec(loc.pathname)?.[1]
 
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, hmsgs, open])
+  useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [turns, hmsgs, open])
 
   // an open human handoff survives closing the panel or reloading the page
   useEffect(() => {
