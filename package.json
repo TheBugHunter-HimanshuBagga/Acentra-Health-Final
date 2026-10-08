@@ -1,0 +1,25 @@
+{
+  "name": "claimshield-nexus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ClaimShield Nexus: SIU intelligence platform (React + Spring Boot + Python).",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:gateway": "node scripts/run-gateway.mjs",
+    "dev:engine": "node scripts/run-engine.mjs",
+    "build": "npm --prefix web run build",
+    "test": "npm run test:web && npm run test:engine && npm run test:gateway",
+    "test:web": "npm --prefix web test",
+    "test:engine": "node scripts/run-engine.mjs --test",
+    "test:gateway": "node scripts/run-gateway.mjs --test",
+    "lint": "npm --prefix web run lint && node scripts/run-engine.mjs --lint",
+    "reset-demo": "node scripts/reset-demo.mjs",
+    "compose:up": "docker compose up --build",
+    "compose:down": "docker compose down",
+    "fixture": "node scripts/run-engine.mjs --module claimshield.make_fixture",
+    "pipeline": "node scripts/run-engine.mjs --module claimshield.pipeline",
+    "e2e:m1": "node scripts/e2e-m1.mjs",
+    "e2e:ui": "node scripts/e2e-ui.mjs"
+  }
+}

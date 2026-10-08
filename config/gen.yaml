@@ -1,0 +1,31 @@
+# Data generation and injection configuration (see docs/ClaimShield_Nexus_Data_Architecture.md).
+# Everything random derives from master_seed via named child seeds, so a rebuild is reproducible.
+master_seed: 20261008
+window_months: 36            # 24 minimum; chosen by the profiler after the CMS download
+providers:
+  n_individual: 450          # adjust so the average is >= 15 claim lines per provider-month
+  n_organization: 50
+geography: { regions: 3, counties_per_region: 4, rural_share: 0.25 }
+members: { death_share: 0.025, ghost_members: 100 }
+split: { train: 0.5, val: 0.2, test: 0.3 }
+# Scheme instances per type: [train, val, test]
+schemes:
+  DUP: [2, 1, 1]
+  UPC: [2, 1, 1]
+  UNB: [2, 1, 1]
+  EXU: [1, 1, 1]
+  UTL: [2, 1, 1]
+  PHA: [1, 0, 1]
+  PHB: [1, 0, 1]
+  PHC: [1, 0, 1]
+  TMA: [1, 0, 1]
+  TMB: [1, 0, 1]
+  DME: [1, 1, 1]
+  RNG: [1, 0, 1]
+  EXC: [1, 0, 1]
+decoys:
+  D1: [1, 1, 1]
+  D2: [1, 0, 1]
+  D3: [1, 1, 1]
+  D4: [1, 1, 1]
+  D5: [1, 1, 1]

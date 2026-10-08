@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: claimshield-gateway
+  datasource:
+    # One SQLite file shared with the Python engine. Python writes serving_*; this app writes wf_*.
+    url: jdbc:sqlite:${APP_DB_PATH:../data/app.db}?journal_mode=WAL&busy_timeout=5000&foreign_keys=on
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 4
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:wf_schema.sql
+      separator: "^^^"
+server:
+  port: 8080
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+claimshield:
+  demo-mode: ${DEMO_MODE:true}
+  engine:
+    url: ${ENGINE_URL:http://127.0.0.1:8000}
+    token: ${ENGINE_TOKEN:dev-engine-token}
+  llm:
+    mode: ${LLM_MODE:template}          # live | template
+    model-brief: ${ANTHROPIC_MODEL_BRIEF:claude-sonnet-5-5}
+    model-fast: ${ANTHROPIC_MODEL_FAST:claude-haiku-5-5}
+    timeout-seconds: 25
+  sarvam:
+    enabled: ${VOICE_ENABLED:false}

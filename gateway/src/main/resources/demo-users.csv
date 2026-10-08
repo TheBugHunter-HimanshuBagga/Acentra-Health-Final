@@ -1,0 +1,6 @@
+# Demo-only accounts, seeded into wf_user at first start when the table is empty.
+# username,displayName,role,password   (never use these outside a local demo)
+investigator,Ivy Investigator,INVESTIGATOR,mNucRffn_uG_eOEL
+supervisor,Sam Supervisor,SUPERVISOR,nEtJu0QFTLYwkXq1
+governance,Gale Governance,GOVERNANCE,USBlbKDNECX-qPp9
+auditor,Avery Auditor,AUDITOR,9YV2irYHEsQAlp72

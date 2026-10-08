@@ -1,0 +1,18 @@
+[project]
+name = "claimshield-engine"
+version = "0.1.0"
+description = "ClaimShield Nexus analytics engine: data, detection, graph, prediction, cases, evidence packs."
+requires-python = ">=3.12"
+# Dependencies are listed in requirements.txt (direct) and requirements.lock (exact pins).
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

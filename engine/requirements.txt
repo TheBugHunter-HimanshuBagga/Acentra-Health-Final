@@ -1,0 +1,23 @@
+# ClaimShield Nexus engine: direct dependencies (see requirements.lock for exact pins)
+# Data
+pandas
+numpy
+scipy
+pyarrow
+duckdb
+# ML / graph
+scikit-learn
+networkx
+# Internal API
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+httpx
+# Config / contracts
+pyyaml
+jsonschema
+# Quality
+pytest
+pytest-cov
+ruff

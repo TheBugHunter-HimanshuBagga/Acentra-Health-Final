@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claimshield.local/schemas/evidence_pack.pk_v1.json",
+  "title": "ClaimShield evidence pack (pk_v1)",
+  "description": "The closed world a case explanation may use. Producer: engine (Stage B). Consumers: gateway (brief, chat, validator). Statements are templates filled from `numbers`; nothing here is free text from a model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packVersion", "caseId", "runId", "asof", "subjects", "scores", "evidence", "numbers", "entities",
+               "dates", "codes", "codeLabels", "timeline", "network", "precedents", "policies", "glossary",
+               "limitations", "permittedActions", "defaultAction", "hypotheses", "insufficientEvidenceRequired",
+               "forbiddenTerms", "packSha256"],
+  "properties": {
+    "packVersion": { "const": "pk_v1" },
+    "caseId": { "type": "string", "pattern": "^CASE-[0-9]{4,}$" },
+    "runId": { "type": "string", "pattern": "^RUN-[0-9]{3,}$" },
+    "asof": { "type": "string", "format": "date" },
+    "subjects": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "role", "specialty", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "role": { "enum": ["PRIMARY", "NETWORK", "RELATED"] },
+          "specialty": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "scores": {
+      "type": "object", "additionalProperties": false, "required": ["risk", "dollars", "tier", "tierReasons"],
+      "properties": {
+        "risk": { "type": "string" },
+        "dollars": { "type": "string" },
+        "tier": { "enum": ["HIGH", "MEDIUM", "LOW"] },
+        "tierReasons": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "text"],
+            "properties": { "id": { "type": "string", "pattern": "^TR[0-9]+$" }, "text": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "detector", "channel", "schemeType", "name", "strength", "hardFact", "template",
+                     "statement", "dollars", "lineCount", "firstServiceDt", "lastServiceDt", "claimRefs",
+                     "examples", "policyRefs"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^E[0-9]+$" },
+          "type": { "enum": ["rule_hit"] },
+          "detector": { "type": "string", "pattern": "^R-[A-Z]+-[0-9]{2}@v[0-9]+$" },
+          "channel": { "enum": ["LINE", "PEER", "SELF", "NETWORK"] },
+          "schemeType": { "type": "string" },
+          "name": { "type": "string" },
+          "strength": { "type": "number" },
+          "hardFact": { "type": "boolean" },
+          "template": { "type": "string" },
+          "statement": { "type": "string" },
+          "dollars": { "type": "number" },
+          "lineCount": { "type": "integer", "minimum": 1 },
+          "firstServiceDt": { "type": "string", "format": "date" },
+          "lastServiceDt": { "type": "string", "format": "date" },
+          "claimRefs": { "type": "array", "items": { "type": "string" } },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["claimId", "lineNo", "serviceDt", "hcpcs", "dollars"],
+              "properties": {
+                "claimId": { "type": "string" }, "lineNo": { "type": "integer" },
+                "serviceDt": { "type": "string", "format": "date" }, "hcpcs": { "type": "string" },
+                "dollars": { "type": "number" }
+              }
+            }
+          },
+          "policyRefs": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "numbers": {
+      "type": "object",
+      "description": "Every number an explanation may state. Key = placeholder name used in templates.",
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["value", "fmt"],
+        "properties": {
+          "value": { "type": "number" },
+          "fmt": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    },
+    "entities": { "type": "array", "items": { "type": "string" } },
+    "dates": { "type": "array", "items": { "type": "string", "format": "date" } },
+    "codes": { "type": "array", "items": { "type": "string" } },
+    "codeLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "date", "text"],
+        "properties": { "id": { "type": "string" }, "date": { "type": "string", "format": "date" },
+                        "text": { "type": "string" } }
+      }
+    },
+    "network": { "type": "array" },
+    "precedents": { "type": "array" },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "version", "title", "text"],
+        "properties": { "id": { "type": "string" }, "version": { "type": "string" }, "title": { "type": "string" },
+                        "text": { "type": "string" } }
+      }
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "term", "definition"],
+        "properties": { "id": { "type": "string" }, "term": { "type": "string" }, "definition": { "type": "string" } }
+      }
+    },
+    "limitations": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "mandatory", "text"],
+        "properties": { "id": { "type": "string", "pattern": "^L[0-9]+$" }, "mandatory": { "type": "boolean" },
+                        "text": { "type": "string" } }
+      }
+    },
+    "permittedActions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["action", "needs"],
+        "properties": {
+          "action": { "enum": ["REQUEST_RECORDS", "PROVIDER_EDUCATION", "PREPAY_REVIEW_FLAG", "MONITOR",
+                               "REFER_EXTERNAL"] },
+          "needs": { "enum": ["NONE", "SUPERVISOR"] }
+        }
+      }
+    },
+    "defaultAction": { "enum": ["REQUEST_RECORDS", "PROVIDER_EDUCATION", "PREPAY_REVIEW_FLAG", "MONITOR",
+                                "REFER_EXTERNAL"] },
+    "hypotheses": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "insufficientEvidenceRequired": { "type": "boolean" },
+    "forbiddenTerms": { "type": "array", "items": { "type": "string" } },
+    "packSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

@@ -1,0 +1,107 @@
+1. AI-Powered Healthcare Operations Assistant
+Medium
+ 
+
+Healthcare operations employees work across procedures, documents, reports, workflow systems, and support channels. They may spend significant time finding trusted information, understanding the next step, completing routine requests, and identifying the correct support team. Build a secure assistant that can answer operational questions, guide routine workflows, identify missing information, and route requests that require human judgment.
+
+·        Use synthetic workbook containing operations requests, approved knowledge articles, workflow information, routing rules, and field definitions.
+
+·        Provide grounded answers with source citations and communicate uncertainty when the available information is incomplete.
+
+·        Guide users through routine operational requests and ask for missing information instead of making unsupported assumptions.
+
+·        Route account-specific, clinical, sensitive, unclear, or low-confidence requests to an appropriate human team.
+
+·        You may add role-based responses, confidence scores, escalation reasons, agent dashboards, summaries, sentiment/urgency detection, and audit trails.
+
+Important boundary: The assistant must not provide medical advice, expose confidential information, bypass access controls, or make irreversible operational decisions without human approval.
+
+ 
+
+General Guidelines & Expectations:
+
+·        Use only public or synthetic data. Do not use real patient, member, provider, employee, production, or confidential client data.
+
+·        Make the user journey clear: what the user enters, what the system does, what it returns, and what happens when the system is uncertain.
+
+·        Show evidence, sources, or data fields supporting important outputs wherever practical.
+
+·        Design for responsible AI: explain limitations, keep a human in the loop, and fail safely.
+
+ 
+
+·        A strong prototype demonstrates a working end-to-end flow rather than only a set of screens or a generic chatbot.
+
+2. Agentic Hospital Discharge & Follow-up Coordinator
+Medium
+ 
+
+After a hospital stay, a patient may receive instructions about medicines, appointments, tests, referrals, rehabilitation, wound care, diet, and warning signs. These instructions can be difficult to track, and important follow-up actions may be missed. Build an agentic coordinator that converts a synthetic discharge summary into a clear, trackable follow-up plan.
+
+·        Extract follow-up appointments, tests, referrals, medication instructions, care instructions, dates, and warning-sign text from a synthetic discharge summary.
+
+·        Turn extracted instructions into tasks, reminders, and a timeline with statuses such as Pending, Completed, or Needs Review.
+
+·        Rewrite instructions in simple, patient-friendly language and optionally support an Indian language.
+
+·        Match follow-up needs to synthetic providers or facilities where appropriate; the Care Provider Finder dataset may be used as a supporting source.
+
+·        Escalate unclear instructions, symptoms, medication questions, and other clinically sensitive items to a human reviewer.
+
+Important boundary: The system may organize and explain discharge instructions, but it must not diagnose a condition, change medication, recommend treatment, or present a synthetic provider match as a guarantee.
+
+General Guidelines & Expectations:
+
+·        Use only public or synthetic data. Do not use real patient, member, provider, employee, production, or confidential client data.
+
+·        Make the user journey clear: what the user enters, what the system does, what it returns, and what happens when the system is uncertain.
+
+·        Show evidence, sources, or data fields supporting important outputs wherever practical.
+
+·        Design for responsible AI: explain limitations, keep a human in the loop, and fail safely.
+
+ 
+
+·        A strong prototype demonstrates a working end-to-end flow rather than only a set of screens or a generic chatbot.
+
+ 
+
+3. ClaimShield Nexus
+Hard
+ 
+
+Healthcare payers process millions of claims across professional, facility, pharmacy, laboratory, ambulance, behavioral health, home health, and durable medical equipment services. Most claims are legitimate, but fraudulent, abusive, or wasteful behavior can cause financial loss, unnecessary utilization, member harm, provider disruption, and regulatory risk.
+
+FWA is often not visible in a single claim. Important signals may appear only when claims are connected to provider behavior, member utilization, facility locations, referrals, ownership indicators, service timing, payment patterns, and previous investigation outcomes. Build ClaimShield Nexus, a unified platform that identifies suspicious claims and coordinated networks, predicts future risk, explains the evidence, and prioritizes cases for Special Investigations Unit review.
+
+·        Load and analyze synthetic claims and related provider, member, facility, referral, relationship, and investigation data.
+
+·        Detect suspicious claim-level behavior such as duplicate billing, upcoding, unbundling, phantom services, excessive utilization, or impossible timing.
+
+·        Use at least two complementary approaches, such as rules plus machine learning, anomaly detection, temporal analytics, or graph analytics.
+
+·        Show relationships among providers, members, facilities, referrals, locations, ownership indicators, and claims.
+
+·        Predict the likelihood of repeat or escalating FWA over a selected 30-, 60-, or 90-day horizon.
+
+·        Provide an SIU queue that ranks cases by risk, potential dollars, member impact, severity, evidence strength, and investigation capacity.
+
+·        Generate an explainable investigation brief with evidence, timeline, network context, confidence, limitations, and recommended human-review action.
+
+Desired outcome: Help a payer move from thousands of unexplained alerts to a smaller, ranked set of evidence-backed cases that investigators can understand and act on.
+
+General Guidelines & Expectations:
+
+·        Use only public or synthetic data. Do not use real patient, member, provider, employee, production, or confidential client data.
+
+·        Make the user journey clear: what the user enters, what the system does, what it returns, and what happens when the system is uncertain.
+
+·        Show evidence, sources, or data fields supporting important outputs wherever practical.
+
+·        Design for responsible AI: explain limitations, keep a human in the loop, and fail safely.
+
+ 
+
+·        A strong prototype demonstrates a working end-to-end flow rather than only a set of screens or a generic chatbot.
+
+ 

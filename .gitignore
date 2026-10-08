@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node / web
+node_modules/
+web/dist/
+web/node_modules/
+web/test-results/
+web/playwright-report/
+
+# Java
+gateway/target/
+gateway/HELP.md
+
+# Python
+engine/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Data: raw downloads (NCCI sits behind an AMA license click-through; never commit), databases, generated files
+data/raw/
+data/processed/
+data/*.duckdb
+data/*.duckdb.wal
+data/app.db
+data/app.db-wal
+data/app.db-shm
+data/e2e/
+data/e2e-ui/
+data/scratch/
+# The demo snapshot is committed on purpose once it exists:
+!data/demo/
+data/demo/*.wal
+data/demo/*.shm
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

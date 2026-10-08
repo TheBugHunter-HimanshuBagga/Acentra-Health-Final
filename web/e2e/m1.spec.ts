@@ -1,0 +1,104 @@
+import { expect, test, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+/** Milestone M1 in a REAL browser against the real gateway, with a freshly generated engine database. */
+function password(user: string): string {
+  const file = path.resolve(process.cwd(), '../gateway/src/main/resources/demo-users.csv')
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+    if (!line || line.startsWith('#')) continue
+    const [u, , , p] = line.split(',')
+    if (u === user) return p
+  }
+  throw new Error(`no demo user ${user}`)
+}
+
+async function actAs(page: Page, role: string) {
+  await page.getByLabel('Demo: act as role').selectOption(role)
+  await expect(page.getByText(`(${role})`).first()).toBeVisible()
+}
+
+test('investigator reviews, supervisor approves, case is closed, audit chain verifies', async ({ page }) => {
+  // sign in
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await page.getByLabel('Username').fill('investigator')
+  await page.getByLabel('Password').fill(password('investigator'))
+  await page.getByRole('button', { name: 'Sign in' }).click()
+
+  // the queue: ranked cases from the engine, HIGH first
+  await expect(page.getByRole('heading', { name: 'SIU queue' })).toBeVisible()
+  const caseLinks = page.getByRole('link', { name: /^CASE-\d{4}$/ })
+  await expect(caseLinks).toHaveCount(8)
+  await expect(page.getByLabel('HIGH confidence').first()).toBeVisible()
+
+  // open the top case: evidence and claim lines are shown
+  const caseId = (await caseLinks.first().textContent())!.trim()
+  await caseLinks.first().click()
+  await expect(page.getByRole('heading', { name: caseId })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible()
+  await expect(page.getByText(/\d+ lines (have|were|duplicate|exceed)|equipment orders/).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Claim lines' })).toBeVisible()
+
+  // Investigation brief: generate it, see the badge and the seven elements
+  await page.getByRole('button', { name: 'Generate investigation brief' }).click()
+  await expect(page.getByTestId('brief-badge')).toHaveText('Validated')
+  for (const t of ['1. Evidence', '2. Timeline', '3. Network context', '4. Confidence', '5. Limitations',
+    '6. Recommended human-review action', '7. Supporting case and risk context']) {
+    await expect(page.getByRole('region', { name: t })).toBeVisible()
+  }
+  await expect(page.locator('body')).not.toContainText('{{')
+
+  // Modify to a high-impact action: needs a reason, then waits for a supervisor
+  await page.getByRole('radio', { name: 'Modify' }).click()
+  await page.getByLabel('Action', { exact: true }).selectOption('PREPAY_REVIEW_FLAG')
+  await page.getByLabel('Reason code').selectOption('NEEDS_RECORDS')
+  await page.getByRole('button', { name: 'Record decision' }).click()
+  await expect(page.getByText(/waits for a supervisor/)).toBeVisible()
+  await expect(page.getByText('Status: ACTION_PROPOSED')).toBeVisible()
+  await expect(page.getByText('Waiting for a supervisor to approve.')).toBeVisible()
+
+  // the investigator cannot see the audit trail
+  await page.getByRole('link', { name: 'Audit' }).click()
+  await expect(page.getByText(/available to supervisors, governance and auditors/)).toBeVisible()
+  await page.getByRole('link', { name: 'Queue' }).click()
+  await page.getByRole('link', { name: caseId }).click()
+
+  // a supervisor approves (two-person rule); the investigator then carries it out
+  await actAs(page, 'SUPERVISOR')
+  await page.getByRole('button', { name: 'Approve' }).click()
+  await expect(page.getByText('Status: ACTION_APPROVED')).toBeVisible()
+  await actAs(page, 'INVESTIGATOR')
+  await page.getByRole('button', { name: 'Carry out (simulated)' }).click()
+  await expect(page.getByText('Status: ACTION_TAKEN')).toBeVisible()
+
+  // final decision
+  await page.getByLabel('Outcome').selectOption('CONFIRMED')
+  await page.locator('#closeReason').selectOption('CONFIRMED_PATTERN')
+  await page.getByLabel(/Rationale/).fill('Records received and they confirm the billing pattern flagged by the rule.')
+  await page.getByRole('button', { name: 'Close case' }).click()
+  await expect(page.getByText('Status: CLOSED')).toBeVisible()
+  await expect(page.getByText(/Closed: CONFIRMED/)).toBeVisible()
+  await expect(page.getByText(/approved by supervisor/)).toBeVisible()
+
+  // audit: every step recorded, chain verifies
+  await actAs(page, 'AUDITOR')
+  await page.getByRole('link', { name: 'Audit' }).click()
+  await expect(page.getByText('CASE_CLOSED')).toBeVisible()
+  await expect(page.getByText('APPROVAL', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Verify chain' }).click()
+  await expect(page.getByText(/Chain verified: \d+ events intact/)).toBeVisible()
+
+  // the queue reflects the closed case
+  await page.getByRole('link', { name: 'Queue' }).click()
+  await expect(page.getByRole('row', { name: new RegExp(`${caseId}.*CLOSED`) })).toBeVisible()
+})
+
+test('a wrong password is refused with a clear message', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Username').fill('investigator')
+  await page.getByLabel('Password').fill('definitely-not-it')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('alert')).toContainText('incorrect')
+  await expect(page.getByRole('heading', { name: 'SIU queue' })).toHaveCount(0)
+})
