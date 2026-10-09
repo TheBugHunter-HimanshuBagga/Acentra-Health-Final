@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/kit/section'
+import { KnowledgeHealth } from '@/features/review/ReviewViews'
 import { useQuery } from '@tanstack/react-query'
 import cytoscape from 'cytoscape'
 import { useEffect, useRef, useState } from 'react'
@@ -70,14 +71,15 @@ export function LibraryPage() {
       </header>
 
       {lint.data && (
-        <section className="surface space-y-2 p-4" aria-labelledby="lint-h">
-          <h2 id="lint-h" className="font-medium">Knowledge health</h2>
-          {lint.data.length === 0 ? (
-            <p className="text-sm">No conflicting precedents, stale exceptions or policy drift were found in the latest run.</p>
-          ) : (
-            <ul className="list-disc pl-5 text-sm">{lint.data.map((x, i) => <li key={i}><strong>{x.severity}</strong> {x.message}</li>)}</ul>
-          )}
-        </section>
+        <KnowledgeHealth
+          lint={lint.data}
+          items={[
+            ...(policies.data ?? []).map((p) => ({ type: 'POLICY' as const, id: p.sectionId, label: p.title })),
+            ...(rules.data ?? []).map((r) => ({ type: 'RULE' as const, id: r.ruleId, label: r.name })),
+            ...(glossary.data ?? []).map((g) => ({ type: 'GLOSSARY' as const, id: g.termId, label: g.term })),
+            ...(help.data ?? []).map((h) => ({ type: 'HELP' as const, id: h.articleId, label: h.title })),
+          ]}
+        />
       )}
 
       <section className="space-y-2" aria-labelledby="pol-h">

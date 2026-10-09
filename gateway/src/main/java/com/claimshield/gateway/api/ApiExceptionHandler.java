@@ -14,6 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -48,6 +49,12 @@ public class ApiExceptionHandler {
   ResponseEntity<Object> unreadable(Exception e) {
     return respond(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED", "Validation failed",
         "The request could not be read: check field names and allowed values.", List.of());
+  }
+
+  /** A browser closed a stream (a tab left or a chat ended): nothing to answer and nothing to log as an error. */
+  @ExceptionHandler(AsyncRequestNotUsableException.class)
+  void clientGone(AsyncRequestNotUsableException e) {
+    log.debug("Client closed a streaming response");
   }
 
   @ExceptionHandler(NoResourceFoundException.class)

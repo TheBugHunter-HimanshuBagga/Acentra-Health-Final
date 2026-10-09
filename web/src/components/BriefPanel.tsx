@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RateAI } from '@/features/review/RateAI'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import type { Brief, BriefLine, Me } from '@/lib/types'
@@ -114,6 +115,7 @@ export function BriefPanel({ caseId, me }: { caseId: string; me: Me }) {
         </ul>
         {b.validation.fallbackReason && <p className="mt-1">Fallback reason: {b.validation.fallbackReason}</p>}
       </details>
+      <RateAI kind="BRIEF" subject={b.briefId} caseId={caseId} />
       <p className="text-xs text-muted-foreground">
         Indicators for human review, not findings. Every line cites the evidence it comes from.
       </p>

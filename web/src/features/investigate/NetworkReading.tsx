@@ -1,5 +1,6 @@
 // An AI reading of the relationship network: counts come from the backend (never the model), the narrative is written
 // only from the stored graph and the case's relationship evidence, and it carries the validated / fallback badge.
+import { RateAI } from '@/features/review/RateAI'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { AiBadge, Sentences } from '@/components/insight/CopilotViews'
@@ -42,6 +43,7 @@ export function NetworkReading({ caseId, canGenerate }: { caseId: string; canGen
           {(s.standsOut?.length ?? 0) > 0 && (<><p className="eyebrow">What stands out</p><Sentences items={s.standsOut} tone="against" /></>)}
           <p className="eyebrow">Verify before acting</p>
           <Sentences items={s.verify ?? []} />
+          <RateAI kind="NETWORK" subject={caseId} caseId={caseId} />
         </div>
       )}
     </div>

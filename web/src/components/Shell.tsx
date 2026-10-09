@@ -81,7 +81,7 @@ export function Shell() {
     }
   }
 
-  const nav = NAV.filter((n) => n.to !== '/agent' || user.role === 'SUPERVISOR' || user.role === 'GOVERNANCE')
+  const nav = NAV.filter((n) => n.to !== '/agent' || user.role !== 'AUDITOR')
   const here = nav.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))
   const crumb = loc.pathname.startsWith('/cases/') ? loc.pathname.split('/')[2] : here ? t(here.key) : ''
 
@@ -188,7 +188,7 @@ export function Shell() {
         </main>
       </div>
       <ErrorBoundary quiet><ChatDock /></ErrorBoundary>
-      <CommandPalette onToggleTheme={() => toggle(themeBtn.current)} showAgent={user.role === 'SUPERVISOR' || user.role === 'GOVERNANCE'} />
+      <CommandPalette onToggleTheme={() => toggle(themeBtn.current)} showAgent={user.role !== 'AUDITOR'} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RateAI } from '@/features/review/RateAI'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ProvChip } from '@/components/Provenance'
@@ -44,6 +45,7 @@ export function InstitutionalMemory({ caseId, me }: { caseId: string; me: Me }) 
       {pr.data?.available && pr.data.content.overallNarrative && (
         <p className="text-sm">{pr.data.content.overallNarrative} <span className="chip chip-fact ml-1">{t('ai.validated', 'Validated')}</span></p>
       )}
+      {pr.data?.available && pr.data.content.overallNarrative && <RateAI kind="PRECEDENT" subject={caseId} caseId={caseId} />}
       <ul className="space-y-3">
         {m.precedents.map((p, i) => {
           const n = narr?.find((x) => x.precedentId === p.precedentId)

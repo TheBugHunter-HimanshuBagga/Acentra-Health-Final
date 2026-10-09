@@ -232,7 +232,7 @@ Reference tables: `ref_specialty`, `ref_hcpcs`, `ref_ncci_ptp`, `ref_mue`, `ref_
 
 `serving_run`, `serving_current_run`, `serving_case` (tier, risk_30/60/90, dollars, member impact, severity, evidence strength, JSON headers), `serving_evidence_pack` (pack JSON + sha256), `serving_case_line`, `serving_graph`, `serving_timeline`, `serving_case_precedent`, `serving_monitor_item`, `serving_funnel`, `serving_dashboard`, `serving_eval`, `serving_policy_section`, `serving_rule_registry`, `serving_glossary`, `serving_help_article`, `serving_precedent_seed`, `serving_knowledge_lint`. Run-specific tables (case, pack, lines, graph, timeline, funnel, dashboard, eval) are keyed by `run_id`, so a re-run adds a new run instead of overwriting; the reference tables (policies, rules, glossary, help, seeds, lint) are not per-run.
 
-### 5.4 Workflow tables (written by the gateway; 17 `wf_*` tables)
+### 5.4 Workflow tables (written by the gateway; 20 `wf_*` tables)
 
 | Table | Purpose | Key constraints |
 |---|---|---|
@@ -249,6 +249,7 @@ Reference tables: `ref_specialty`, `ref_hcpcs`, `ref_ncci_ptp`, `ref_mue`, `ref_
 | `wf_feedback` | Structured feedback (USEFUL/NOT_USEFUL, categories, decision) | |
 | `wf_knowledge_item` | Lessons extracted after closure, PENDING_REVIEW to APPROVED/REJECTED | approved by a different person |
 | `wf_handoff`, `wf_handoff_message` | Human handoff conversations | status WAITING/ACTIVE/CLOSED |
+| `wf_dm_thread`, `wf_dm_message`, `wf_dm_read` | Direct messages: one thread per pair of people (UNIQUE user_a/user_b), messages with an optional `case_id`, per-user read position | participants only; auditors excluded |
 | `wf_notification` | Per-person notifications, folded by (user, kind, ref) while unread | index on (username, read_at, created_at) |
 
 ```mermaid
@@ -301,7 +302,7 @@ flowchart LR
 Approved knowledge never changes a score or a rule. Recorded-fact rules cannot be excepted.
 
 ### Human handoff and notifications
-A person asks for a specialist (chat intent or "Connect me to a human specialist"). A `wf_handoff` row is created, every supervisor and governance user gets a notification, one of them joins from the Specialist desk, and both chat in the same conversation (Server-Sent Events, 1 s pump, **not WebSocket**). Personal identifiers (SSN, email, phone patterns) are refused; each message is audited by SHA-256 only. Notifications are stored per user and shown when that user signs in or on the next 4 s poll.
+**Direct messages** (menu *Messages*, route `/agent`) are separate from the assistant: two people, any message can carry a case, only the two can read it, the other person is notified. **Assistant handoff:** a person asks for a specialist (chat intent or "Connect me to a human specialist"). A `wf_handoff` row is created, every supervisor and governance user gets a notification, one of them joins from the Specialist desk, and both chat in the same conversation (Server-Sent Events, 1 s pump, **not WebSocket**). Personal identifiers (SSN, email, phone patterns) are refused; each message is audited by SHA-256 only. Notifications are stored per user and shown when that user signs in or on the next 4 s poll.
 
 ### Investigation canvas
 Entities and links come only from real records (stored graph, flagged claim lines, evidence pack). Layout is a deterministic force relaxation; a tile you move is pinned. Playback steps are built from the case: ownership, claims, members, each evidence item, related providers, risk build-up (ends on exactly the engine's score), recommended human review. Only the primary provider has a risk; others show none. Links are labelled derived, not confirmed.
@@ -320,6 +321,7 @@ All paths are under `/api`, JSON, session cookie + `X-XSRF-TOKEN` header for non
 | Knowledge | `GET /precedents`, `GET /cases/{id}/precedents`, `POST /precedents/{id}/cosign` (a precedent is created when a case is closed), `/exceptions` (propose, simulate, submit, approve, retire, explain), `POST /cases/{id}/knowledge/extract`, `/knowledge-items`, `/knowledge-items/{id}/decision`, `GET /knowledge/{policies,rules,glossary,help,lint,graph}`, `POST /runs/rerun`, `GET /jobs` |
 | AI | `GET/POST /cases/{id}/brief`, `/reasoning`, `/precedent-reasoning`, `/challenge`, `/network-analysis`; `POST /cases/{id}/copilot`; `POST /chat`, `GET /chat/{session}`; `POST /voice/{chat,speak,transcribe}`; `GET /ai/usage` |
 | Feedback/memory | `POST/GET /cases/{id}/feedback`, `GET /feedback/summary`, `GET /cases/{id}/institutional-memory`, `GET /learning/growth` |
+| Direct messages | `GET /people`, `GET/POST /dm/threads`, `GET /dm/threads/{id}`, `POST /dm/threads/{id}/messages` (`text`, optional `caseId`), `POST /dm/threads/{id}/read` |
 | Handoff | `POST /handoff`, `GET /handoff/mine`, `GET /handoff/{id}`, `POST /handoff/{id}/messages`, `GET /handoff/{id}/stream` (SSE), `POST /handoff/{id}/close`, `GET /handoff/{id}/transcript`, `GET /agent/queue`, `POST /agent/handoffs/{id}/join` |
 | Notifications | `GET /notifications`, `POST /notifications/read` `{ids}` or `{all:true}` |
 | Audit | `GET /audit`, `GET /audit/verify` |
@@ -407,3 +409,11 @@ These numbers describe a point in time; rerun the commands in the demo guide to 
 - The investigation canvas has no keyboard graph navigation beyond Tab/Enter/Escape; light mode and mobile were not visually reviewed for the newest screens.
 - **Known inaccuracy in the UI:** the landing page's "detectors" figure (`web/src/pages/Landing.tsx`) says 13, which is the number of detectors that have injected positives in the evaluation; the registry in `reference.py` defines 20. Left unchanged because this task forbids code edits; correct it before presenting if you quote that number.
 - A full read of every source file was not performed during documentation; module summaries come from reading the key files, schemas, controllers and tests and from the passing test suites.
+
+## Human rating of AI output (review notes)
+
+Every AI output carries a visible **Rate this AI output** strip: **Good** (one click), **Fine** or **Bad** (reason chips such as "Wrong number" or "Too vague", plus optional free text; a reason is required). It appears under the AI reasoning, investigation brief, copilot answers, challenge view, network reading, precedent narrative and chat assistant answers. Per-sentence thumbs remain under AI reasoning, copilot and challenge sentences.
+
+Ratings are stored in `wf_review_note` (`subject_type` AI_OUTPUT, AI_SENTENCE, CRITIQUE_FINDING or KNOWLEDGE_ITEM; verdict GOOD, FINE, BAD, AGREE, DISAGREE, ACCEPT_PROPOSAL or REJECT_PROPOSAL), written through `POST /api/review/notes`, audited as `HUMAN_REVIEW_NOTE` by hash, and listed in Library, Knowledge health, Review log. Auditors cannot rate. A rating never changes a score, rule, policy or case. Library, Knowledge health also offers "Find weaknesses" (`POST /api/knowledge/critique`) and "Propose wording" (`POST /api/knowledge/finetune`); both are Gemini-grounded with a labelled fallback, and nothing is applied automatically.
+
+Note: an existing database created before this change keeps the old CHECK constraints on `wf_review_note`; drop that table once (it is recreated on start).

@@ -45,7 +45,7 @@ export function CommandPalette({ onToggleTheme, showAgent }: { onToggleTheme: ()
         <CommandList>
           <CommandEmpty>Nothing matches.</CommandEmpty>
           <CommandGroup heading="Pages">
-            {[...PAGES, ...(showAgent ? ([['Specialist desk', '/agent']] as [string, string][]) : [])].map(([label, to]) => (
+            {[...PAGES, ...(showAgent ? ([['Messages', '/agent']] as [string, string][]) : [])].map(([label, to]) => (
               <CommandItem key={to} value={`page ${label}`} onSelect={() => go(to)}>{label}</CommandItem>
             ))}
           </CommandGroup>

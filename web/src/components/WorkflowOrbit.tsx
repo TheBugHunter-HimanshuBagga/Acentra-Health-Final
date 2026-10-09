@@ -47,6 +47,7 @@ export function WorkflowOrbit({ className = '' }: { className?: string }) {
       u.forEach((p, i) => {
         const idx = Math.floor(p * SAMPLES) % SAMPLES
         const c = curve[idx]
+        if (!c) return
         parts.current[i]?.setAttribute('transform', `translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`)
         const trail: string[] = []
         for (let k = 0; k < 34; k += 2) {

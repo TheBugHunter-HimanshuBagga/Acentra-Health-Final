@@ -1,4 +1,3 @@
-import { PageHeader } from '@/components/kit/section'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -12,8 +11,8 @@ interface QueueItem extends Handoff {
   lastMessage: HandoffMessage | null
 }
 
-/** The specialist desk: people who asked for a human appear here; a supervisor or governance user joins in the same chat. */
-export function AgentPage() {
+/** Requests that came from the assistant ("connect me to a human"). Separate from direct messages. */
+export function HandoffDesk() {
   const me = useMe().data
   const qc = useQueryClient()
   const allowed = me?.role === 'SUPERVISOR' || me?.role === 'GOVERNANCE'
@@ -47,7 +46,7 @@ export function AgentPage() {
   }, [sel, current?.status])
 
   if (!me) return null
-  if (!allowed) return <p>The specialist desk is for supervisors and governance specialists.</p>
+  if (!allowed) return <p className="text-sm text-muted-foreground">Assistant requests are for supervisors and governance specialists.</p>
 
   async function join(id: string) {
     setError(null)
@@ -86,7 +85,7 @@ export function AgentPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-3">
-        <PageHeader eyebrow="Human in the loop" lead="Specialist" accent="desk" inline lede="People land here when the assistant could not answer confidently or they asked for a person. Joining continues the same chat; every message is stored for the audit trail." />
+        <p className="max-w-2xl text-sm text-muted-foreground">People land here when the assistant could not answer confidently or they asked for a person. Joining continues the same chat; every message is stored for the audit trail. This is separate from your direct messages.</p>
       </header>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">

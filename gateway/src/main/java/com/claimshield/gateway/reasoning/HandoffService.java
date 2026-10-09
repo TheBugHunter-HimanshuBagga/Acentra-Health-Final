@@ -317,7 +317,11 @@ public class HandoffService {
         }
       } catch (Exception e) {
         stop.run();
-        em.complete();
+        try {
+          em.complete();
+        } catch (Exception ignored) {
+          // the client is already gone
+        }
       }
     }, 0, 1, TimeUnit.SECONDS);
     return em;

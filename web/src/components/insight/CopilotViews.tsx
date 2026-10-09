@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RateAI } from '@/features/review/RateAI'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { SentenceReview } from '@/features/review/ReviewViews'
 import { api, ApiError } from '@/lib/api'
 import type { Me } from '@/lib/types'
 import type { AiSentence, CopilotAnswer, GroundedOutput } from '@/lib/types2'
@@ -27,13 +29,13 @@ export function Cites({ ids }: { ids: string[] }) {
   )
 }
 
-export function Sentences({ items, tone }: { items: AiSentence[]; tone?: 'plain' | 'against' }) {
+export function Sentences({ items, tone, review }: { items: AiSentence[]; tone?: 'plain' | 'against'; review?: { caseId: string; prefix: string } }) {
   return (
     <ul className="space-y-2">
       {items.map((s, i) => (
         <li key={i} className="flex gap-3 text-[0.95rem] leading-relaxed">
           <span aria-hidden className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${tone === 'against' ? 'bg-[var(--warn)]' : 'bg-[var(--signal)]'}`} />
-          <span>{s.text} <Cites ids={s.citations} /></span>
+          <span>{s.text} <Cites ids={s.citations} />{review && <SentenceReview caseId={review.caseId} subject={`${review.caseId}:${review.prefix}:${i}`} text={s.text} />}</span>
         </li>
       ))}
     </ul>
@@ -90,8 +92,9 @@ export function CopilotPanel({ caseId, me }: { caseId: string; me: Me }) {
               {a.content.answerable === false ? (
                 <p className="text-sm">{a.content.notInPack}</p>
               ) : (
-                <Sentences items={a.content.sections?.answer ?? []} />
+                <Sentences items={a.content.sections?.answer ?? []} review={{ caseId, prefix: `copilot-${log.indexOf(a)}` }} />
               )}
+              {a.content.answerable !== false && <RateAI kind="COPILOT" subject={`${caseId}:${i}`} caseId={caseId} text={a.question} />}
               {(a.content.sections?.followUps?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {a.content.sections!.followUps.map((f, k) => (
@@ -150,7 +153,7 @@ export function ChallengePanel({ caseId, me }: { caseId: string; me: Me }) {
           <div className="space-y-3 bg-card p-5">
             <p className="eyebrow">{t('challenge.against', 'The case against flagging')}</p>
             {s.headline?.length > 0 && <p className="display text-xl leading-snug">{s.headline[0].text}</p>}
-            <Sentences items={s.counterArguments ?? []} tone="against" />
+            <Sentences items={s.counterArguments ?? []} tone="against" review={{ caseId, prefix: 'challenge' }} />
             {(s.innocentExplanations?.length ?? 0) > 0 && (
               <>
                 <p className="eyebrow pt-2">{t('challenge.innocent', 'Legitimate explanations to rule out')}</p>
@@ -161,6 +164,7 @@ export function ChallengePanel({ caseId, me }: { caseId: string; me: Me }) {
           <div className="space-y-3 bg-card p-5">
             <p className="eyebrow">{t('challenge.settle', 'What would settle it')}</p>
             <Sentences items={s.whatWouldChangeTheView ?? []} />
+            <RateAI kind="CHALLENGE" subject={caseId} caseId={caseId} className="mt-3" />
           </div>
         </div>
       )}

@@ -151,3 +151,27 @@ CREATE TABLE IF NOT EXISTS wf_notification (
 )
 ^^^
 CREATE INDEX IF NOT EXISTS idx_notification_user ON wf_notification (username, read_at, created_at)
+^^^
+CREATE TABLE IF NOT EXISTS wf_dm_thread (
+  thread_id TEXT PRIMARY KEY, user_a TEXT NOT NULL, user_b TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE (user_a, user_b)
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_dm_message (
+  message_id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES wf_dm_thread(thread_id), sender TEXT NOT NULL,
+  text TEXT NOT NULL, case_id TEXT, created_at TEXT NOT NULL
+)
+^^^
+CREATE TABLE IF NOT EXISTS wf_dm_read (
+  thread_id TEXT NOT NULL REFERENCES wf_dm_thread(thread_id), username TEXT NOT NULL, last_seq INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (thread_id, username)
+)
+^^^
+CREATE INDEX IF NOT EXISTS idx_dm_message_thread ON wf_dm_message (thread_id)
+^^^
+CREATE TABLE IF NOT EXISTS wf_review_note (
+  note_id TEXT PRIMARY KEY, subject_type TEXT NOT NULL CHECK (subject_type IN ('AI_OUTPUT','AI_SENTENCE','CRITIQUE_FINDING','KNOWLEDGE_ITEM')),
+  subject_id TEXT NOT NULL, case_id TEXT, username TEXT NOT NULL, role TEXT NOT NULL,
+  verdict TEXT NOT NULL CHECK (verdict IN ('GOOD','FINE','BAD','AGREE','DISAGREE','ACCEPT_PROPOSAL','REJECT_PROPOSAL')),
+  note TEXT NOT NULL DEFAULT '', proposal TEXT, created_at TEXT NOT NULL
+)

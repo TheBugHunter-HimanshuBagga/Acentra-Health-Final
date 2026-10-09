@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, Check, MessageCircle, UserPlus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 
@@ -27,6 +28,8 @@ export function NotificationBell() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const seen = useRef<Map<string, number> | null>(null)
   const box = useRef<HTMLDivElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ left: 8, top: 56, width: 320 })
   const q = useQuery<Feed>({ queryKey: ['notifications'], queryFn: () => api('/api/notifications'), refetchInterval: 4000, refetchIntervalInBackground: true })
   const read = useMutation({
     mutationFn: (body: { ids?: string[]; all?: boolean }) => api<Feed>('/api/notifications/read', { method: 'POST', body }),
@@ -55,11 +58,19 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!open) return
-    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false) }
+    const place = () => {           // fixed to the viewport, clamped inside it, so it can never leave the screen
+      const r = box.current?.getBoundingClientRect()
+      const width = Math.min(340, window.innerWidth - 16)
+      if (r) setPos({ width, left: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), top: r.bottom + 8 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !pop.current?.contains(e.target as Node)) setOpen(false) }
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', away)
     document.addEventListener('keydown', esc)
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc) }
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
   }, [open])
 
   const go = (i: Item) => {
@@ -80,13 +91,13 @@ export function NotificationBell() {
         {unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-[var(--tier-high)] px-1 text-[0.6rem] font-semibold leading-4 text-white">{unread > 9 ? '9+' : unread}</span>}
       </button>
 
-      {open && (
-        <div role="dialog" aria-label="Notifications" className="notif-pop absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-2xl border bg-popover shadow-2xl">
+      {open && createPortal(
+        <div ref={pop} role="dialog" aria-label="Notifications" className="notif-pop fixed z-[70] max-h-[calc(100dvh-4.5rem)] overflow-hidden rounded-2xl border bg-popover shadow-2xl" style={{ left: pos.left, top: pos.top, width: pos.width }}>
           <div className="flex items-center justify-between border-b px-4 py-3">
             <p className="text-sm font-semibold">Notifications</p>
             <button type="button" disabled={unread === 0} onClick={() => read.mutate({ all: true })} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:no-underline disabled:opacity-40">Mark all read</button>
           </div>
-          <ul className="max-h-96 overflow-y-auto">
+          <ul className="max-h-[min(24rem,calc(100dvh-9rem))] overflow-y-auto">
             {(q.data?.items ?? []).length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing yet. Requests and replies appear here.</li>}
             {(q.data?.items ?? []).map((i) => {
               const Icon = ICON[i.kind] ?? Bell
@@ -105,10 +116,11 @@ export function NotificationBell() {
               )
             })}
           </ul>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      <div aria-live="polite" className="pointer-events-none fixed bottom-5 left-5 z-[60] flex w-80 flex-col gap-2">
+      {createPortal(<div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-[80] flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2">
         {toasts.map((t) => (
           <div key={t.key} className="toast-in pointer-events-auto flex items-start gap-3 rounded-2xl border bg-popover p-3.5 shadow-2xl">
             <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--signal)] text-[var(--accent-foreground)]"><Bell aria-hidden className="h-4 w-4" /></span>
@@ -120,7 +132,7 @@ export function NotificationBell() {
             <button type="button" aria-label="Dismiss" onClick={() => setToasts((x) => x.filter((y) => y.key !== t.key))} className="text-muted-foreground hover:text-foreground"><X aria-hidden className="h-4 w-4" /></button>
           </div>
         ))}
-      </div>
+      </div>, document.body)}
     </div>
   )
 }

@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RateAI } from '@/features/review/RateAI'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ProvChip } from '@/components/Provenance'
+import { SentenceReview } from '@/features/review/ReviewViews'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import type { Me } from '@/lib/types'
@@ -117,7 +119,7 @@ export function AiReasoning({ caseId, me }: { caseId: string; me: Me }) {
           </Button>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">{t('ai.note', 'Written only from this case’s validated evidence pack. Every sentence cites evidence ids and is checked before you see it. It explains; it never decides.')}</p>
+      <p className="text-xs text-muted-foreground">{t('ai.note', 'Written only from this case’s validated evidence pack. Every sentence cites evidence ids and is checked before you see it. It explains; it never decides.')} {t('ai.human', 'You can agree or disagree with any sentence: use the thumbs; your reason is recorded for review.')}</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {r?.available && r.validation.fallbackReason && r.badge !== 'VALIDATED' && (
         <p className="text-xs text-muted-foreground">{t('ai.why', 'Shown instead of the model’s text')}: {r.validation.fallbackReason}.</p>
@@ -132,6 +134,7 @@ export function AiReasoning({ caseId, me }: { caseId: string; me: Me }) {
                   <li key={i} className="text-[0.95rem] leading-relaxed">
                     {s.text}{' '}
                     <span className="mono whitespace-nowrap text-[0.65rem] text-muted-foreground">{s.citations.map((c) => <span key={c} className="mr-1 rounded border px-1 py-0.5">{c}</span>)}</span>
+                    <SentenceReview caseId={caseId} subject={`${caseId}:${k}:${i}`} text={s.text} />
                   </li>
                 ))}
               </ul>
@@ -139,6 +142,7 @@ export function AiReasoning({ caseId, me }: { caseId: string; me: Me }) {
           ))}
         </div>
       )}
+      {r?.available && r.content.sections && <RateAI kind="REASONING" subject={caseId} caseId={caseId} />}
     </div>
   )
 }

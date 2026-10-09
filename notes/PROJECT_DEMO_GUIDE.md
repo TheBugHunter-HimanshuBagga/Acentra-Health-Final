@@ -55,7 +55,7 @@ Never paste real keys into chat or commit them; if a key was ever shared, rotate
 
 You do not create tables by hand.
 
-- **Gateway** applies `contracts/sql/wf_schema.sql` to SQLite on every start (`CREATE TABLE IF NOT EXISTS`): 17 `wf_*` tables. It also seeds the four demo users and one approved exception (EXC-0001) when empty.
+- **Gateway** applies `contracts/sql/wf_schema.sql` to SQLite on every start (`CREATE TABLE IF NOT EXISTS`): 20 `wf_*` tables. It also seeds the four demo users and one approved exception (EXC-0001) when empty.
 - **Engine** (`python -m claimshield.pipeline`, wrapped by `npm run pipeline`) generates the synthetic claims into `data/claims.duckdb`, the answer key into `data/gt.duckdb`, runs detection and publishes `serving_*` tables into `data/app.db`.
 - **Docker**: the engine's entrypoint runs the pipeline on first start into a shared volume.
 
@@ -126,7 +126,7 @@ On first sign-in each user sees a language screen (11 languages). Pick one or "S
 | **Rules and exceptions** | Draft exception, simulate on real data, lint, approve (governance), re-run | `/api/exceptions/*`, `/api/runs/rerun` |
 | **Audit** | Hash-chained events, filters, **Verify chain** | `GET /api/audit`, `/audit/verify` |
 | **Library** | Policies, rules, glossary, help | `GET /api/knowledge/*` |
-| **Specialist desk** (supervisor/governance) | Waiting requests, join, chat | `/api/agent/queue`, `/api/handoff/*` |
+| **Messages** (all roles except auditor) | Direct conversations with one colleague, attach a case to any message; supervisors/governance also have an *Assistant requests* tab for people the chatbot could not help | `/api/dm/*`, `/api/people`; `/api/agent/queue`, `/api/handoff/*` |
 | **Bell (top bar)** | Notifications for requests, joins, messages | `GET /api/notifications` (polled every 4 s) |
 | **Assistant (round button, bottom right)** | Questions answered from validated facts, voice if enabled, "Connect me to a human specialist" | `POST /api/chat` |
 | **Ctrl+K** | Jump to a page or case | local, uses the queue |
@@ -159,11 +159,16 @@ Numbers below were seen in the verified Docker run (RUN-002, seeded); your value
 7. While paused, ask `Why did the risk increase?`. Expected: an answer from the step currently on screen (the risk before and after, and the evidence).
 8. Ask something outside the records: `What is the capital of France?`. Expected: "The evidence pack for this case does not contain that, so I will not guess..."
 
-### Scenario 3: Two people, one conversation (about 3 minutes), two windows
+### Scenario 3a: Direct message with a case attached (about 2 minutes), two windows
+
+1. Window A: sign in as `governance`, open **Messages**, click **New conversation**, choose *Ivy Investigator*, pick a case under *About a case*, write your input, **Send**.
+2. Window B: sign in as `investigator`. The bell shows an unread notification (it stays inside the screen on any window size). Click it: the conversation opens with the attached case card (links to the case workspace and the investigation canvas). Reply; window A sees it within a few seconds.
+
+### Scenario 3: Assistant asks for a specialist (about 3 minutes), two windows
 
 1. Window A: sign in as `investigator`. Open the assistant, type `I want to talk to a human specialist`, click **Connect me to a human specialist**. Expected: "Waiting for a human specialist".
 2. Window B (private window): sign in as `supervisor`. Expected: the bell shows **1 unread**, and a toast says you have an unread notification. Open the bell, click "... needs a specialist".
-3. On the **Specialist desk** click **Join the conversation**, type a reply and send.
+3. On **Messages**, tab **Assistant requests** (it opens from the notification), click **Join the conversation**, type a reply and send.
 4. Window A: the chat shows "Connected to ..." and the reply; the bell shows a notification too. Reply; window B sees it.
 5. Notifications are stored: a specialist who signs in *after* the request still sees it.
 

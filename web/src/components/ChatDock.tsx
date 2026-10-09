@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { RateAI } from '@/features/review/RateAI'
 import { Mic, MessageCircle, Send, Square, Volume2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -337,6 +338,7 @@ function AssistantTurn({ turn, onNavigate, onConnect, canConnect }: { turn: Turn
       {r.notices.map((n) => (
         <p key={n} className="text-xs text-muted-foreground">{NOTICES[n] ?? n}</p>
       ))}
+      {r.mode !== 'REFUSAL' && <RateAI kind="CHAT" subject={String(turn.id)} text={r.blocks.map((b) => b.text).join(' ')} />}
       {r.handoffOffered && canConnect && (
         <button type="button" onClick={onConnect} className="rounded-full border px-3 py-1.5 text-xs hover:border-primary">Connect me to a human specialist</button>
       )}
